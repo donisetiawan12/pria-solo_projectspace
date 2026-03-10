@@ -1,19 +1,26 @@
-    -- Kelompok Pria Solo --
-<<<<<<< HEAD
-
-* Muhammad Yordan Al Zisky - 0110224152
-* Doni Setiawan - 0110224010
-* Hapiz Azzaidan - 0110224011
-* Reza Raft Davis - 0110224219
-* Muhammad Ardika - 0110224206
-
 # ProjectSpace
 
-**ProjectSpace** adalah platform web yang dibuat untuk membantu mahasiswa menyimpan, menampilkan, dan membagikan project yang telah mereka kerjakan. Website ini berfungsi sebagai tempat **portfolio project mahasiswa**, sehingga project yang dibuat dapat dilihat oleh mahasiswa lain.
+## Kelompok Pria Solo
+
+| Nama                     | NIM        |
+| ------------------------ | ---------- |
+| Muhammad Yordan Al Zisky | 0110224152 |
+| Doni Setiawan            | 0110224010 |
+| Hapiz Azzaidan           | 0110224011 |
+| Reza Raft Davis          | 0110224219 |
+| Muhammad Ardika          | 0110224206 |
+
+---
+
+## Deskripsi Project
+
+**ProjectSpace** adalah platform web yang dirancang untuk membantu mahasiswa menyimpan, menampilkan, dan membagikan project yang telah mereka kerjakan. Website ini berfungsi sebagai **portfolio project mahasiswa**, sehingga hasil karya yang dibuat dapat dilihat dan diapresiasi oleh mahasiswa lain.
 
 Melalui ProjectSpace, pengguna dapat **mengunggah project**, menambahkan **deskripsi project**, serta menyertakan **link GitHub atau demo website**. Pengguna lain juga dapat melihat project tersebut dan memberikan **like atau komentar** sebagai bentuk interaksi dan feedback.
 
 Tujuan utama dari ProjectSpace adalah menyediakan ruang bagi mahasiswa untuk **menunjukkan hasil karya mereka di bidang programming** sekaligus menjadi tempat untuk **berbagi ide dan inspirasi antar mahasiswa**.
+
+---
 
 ## Fitur Utama
 
@@ -24,4 +31,23 @@ Tujuan utama dari ProjectSpace adalah menyediakan ruang bagi mahasiswa untuk **m
 * Profil pengguna
 * Like dan komentar pada project
 
-Project ini dikembangkan sebagai bagian dari tugas **Full Stack JavaScript**, menggunakan teknologi **Frontend (React / JavaScript), Backend (Node.js + Express), dan Database (MySQL)**.
+---
+
+## Teknologi yang Digunakan
+
+Project ini dikembangkan sebagai bagian dari tugas **Full Stack JavaScript** dengan menggunakan teknologi berikut:
+
+* **Frontend** : React / JavaScript, HTML, CSS
+* **Backend** : Node.js, Express.js
+* **Database** : MySQL
+
+---
+
+## Tujuan Pengembangan
+
+ProjectSpace dibuat untuk:
+
+* Menjadi tempat mahasiswa menampilkan portfolio project mereka
+* Memudahkan mahasiswa berbagi hasil karya di bidang programming
+* Menyediakan ruang interaksi melalui komentar dan feedback
+* Mendorong kolaborasi serta pertukaran ide antar mahasiswa
