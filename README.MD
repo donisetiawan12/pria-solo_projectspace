@@ -8,7 +8,7 @@
 | Doni Setiawan            | 0110224010 |
 | Hapiz Azzaidan           | 0110224011 |
 | Reza Raft Davis          | 0110224219 |
-| Muhammad Ardika          | 0110224206 |
+| Ardhika Adfiansyah Setiana         | 0110224206 |
 
 ---
 
