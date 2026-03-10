@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 10 Mar 2026 pada 16.26
+-- Waktu pembuatan: 10 Mar 2026 pada 17.28
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `projectspace_db`
+-- Database: `projectspace`
 --
 
 -- --------------------------------------------------------
@@ -29,18 +29,24 @@ SET time_zone = "+00:00";
 
 CREATE TABLE `comments` (
   `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `project_id` int(11) NOT NULL,
   `comment` text NOT NULL,
-  `user_id` int(11) DEFAULT NULL,
-  `project_id` int(11) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- --------------------------------------------------------
+
 --
--- Dumping data untuk tabel `comments`
+-- Struktur dari tabel `likes`
 --
 
-INSERT INTO `comments` (`id`, `comment`, `user_id`, `project_id`, `created_at`) VALUES
-(1, 'Keren bro projectnya!', 2, 1, '2026-03-10 15:24:22');
+CREATE TABLE `likes` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `project_id` int(11) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -50,22 +56,13 @@ INSERT INTO `comments` (`id`, `comment`, `user_id`, `project_id`, `created_at`) 
 
 CREATE TABLE `projects` (
   `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
   `title` varchar(200) NOT NULL,
   `description` text DEFAULT NULL,
-  `tech_stack` varchar(200) DEFAULT NULL,
   `github_link` varchar(255) DEFAULT NULL,
   `demo_link` varchar(255) DEFAULT NULL,
-  `image` varchar(255) DEFAULT NULL,
-  `user_id` int(11) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data untuk tabel `projects`
---
-
-INSERT INTO `projects` (`id`, `title`, `description`, `tech_stack`, `github_link`, `demo_link`, `image`, `user_id`, `created_at`) VALUES
-(1, 'Todo List React', 'Aplikasi todo list menggunakan React', 'React, Node.js', 'https://github.com/andi/todo-react', NULL, NULL, 1, '2026-03-10 15:24:07');
 
 -- --------------------------------------------------------
 
@@ -79,16 +76,9 @@ CREATE TABLE `users` (
   `email` varchar(100) NOT NULL,
   `password` varchar(255) NOT NULL,
   `university` varchar(100) DEFAULT NULL,
+  `bio` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data untuk tabel `users`
---
-
-INSERT INTO `users` (`id`, `name`, `email`, `password`, `university`, `created_at`) VALUES
-(1, 'Andi Saputra', 'andi@email.com', 'password123', 'STT NF', '2026-03-10 15:23:52'),
-(2, 'Budi Santoso', 'budi@email.com', 'password123', 'Universitas Indonesia', '2026-03-10 15:23:52');
 
 --
 -- Indexes for dumped tables
@@ -98,6 +88,14 @@ INSERT INTO `users` (`id`, `name`, `email`, `password`, `university`, `created_a
 -- Indeks untuk tabel `comments`
 --
 ALTER TABLE `comments`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`),
+  ADD KEY `project_id` (`project_id`);
+
+--
+-- Indeks untuk tabel `likes`
+--
+ALTER TABLE `likes`
   ADD PRIMARY KEY (`id`),
   ADD KEY `user_id` (`user_id`),
   ADD KEY `project_id` (`project_id`);
@@ -124,19 +122,25 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT untuk tabel `comments`
 --
 ALTER TABLE `comments`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT untuk tabel `likes`
+--
+ALTER TABLE `likes`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT untuk tabel `projects`
 --
 ALTER TABLE `projects`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT untuk tabel `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- Ketidakleluasaan untuk tabel pelimpahan (Dumped Tables)
@@ -148,6 +152,13 @@ ALTER TABLE `users`
 ALTER TABLE `comments`
   ADD CONSTRAINT `comments_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `comments_ibfk_2` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE;
+
+--
+-- Ketidakleluasaan untuk tabel `likes`
+--
+ALTER TABLE `likes`
+  ADD CONSTRAINT `likes_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `likes_ibfk_2` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE;
 
 --
 -- Ketidakleluasaan untuk tabel `projects`
