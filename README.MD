@@ -1,19 +1,11 @@
     -- Kelompok Pria Solo --
-<<<<<<< HEAD
+
 
 Muhammad Yordan Al Zisky - 0110224152
 Doni Setiawan - 0110224010
 Hapiz Azzaidan - 0110224011
 Reza Raft Davis - 0110224219
 Muhammad Ardika - 0110224206
-=======
-    Muhammad Yordan Al-Zisky - 0110224152
-    Doni Setiawan - 0110224010
-    Hafiz Azzaidan - 0110224011
-    Reza Raft Davis - 0110224219
-    Muhammad Ardika - 0110224206
->>>>>>> a80af63407ef4767b5882175b5d58095b7b1dc0e
-
 
 # ProjectSpace
 
