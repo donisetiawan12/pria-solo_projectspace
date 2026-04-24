@@ -1,50 +1,35 @@
 const db = require('../config/db');
 
-const getAllProjects = (callback) => {
-  db.query('SELECT * FROM projects', callback);
+const createProject = (title, description, user_id) => {
+  return db.execute(
+    'INSERT INTO projects (title, description, user_id) VALUES (?, ?, ?)',
+    [title, description, user_id]
+  );
 };
 
-const getProjectById = (id, callback) => {
-  db.query('SELECT * FROM projects WHERE id = ?', [id], callback);
+const getAllProjects = () => {
+  return db.execute('SELECT * FROM projects');
 };
 
-const createProject = (data, callback) => {
-  const query = `
-    INSERT INTO projects (user_id, title, description, github_link, demo_link)
-    VALUES (?, ?, ?, ?, ?)
-  `;
-  db.query(query, [
-    data.user_id,
-    data.title,
-    data.description,
-    data.github_link,
-    data.demo_link
-  ], callback);
+const getProjectById = (id) => {
+  return db.execute('SELECT * FROM projects WHERE id = ?', [id]);
 };
 
-const updateProject = (id, data, callback) => {
-  const query = `
-    UPDATE projects 
-    SET title=?, description=?, github_link=?, demo_link=?
-    WHERE id=?
-  `;
-  db.query(query, [
-    data.title,
-    data.description,
-    data.github_link,
-    data.demo_link,
-    id
-  ], callback);
+const updateProject = (id, title, description) => {
+  return db.execute(
+    'UPDATE projects SET title = ?, description = ? WHERE id = ?',
+    [title, description, id]
+  );
 };
 
-const deleteProject = (id, callback) => {
-  db.query('DELETE FROM projects WHERE id = ?', [id], callback);
+const deleteProject = (id) => {
+  return db.execute('DELETE FROM projects WHERE id = ?', [id]);
 };
 
 module.exports = {
+  createProject,
   getAllProjects,
   getProjectById,
-  createProject,
   updateProject,
   deleteProject
 };

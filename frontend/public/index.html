@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ProjectSpace</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- LANDING -->
+    <div class="landing" id="landing">
+      <h1>🚀 ProjectSpace</h1>
+      <p>Platform untuk share & kelola project kamu</p>
+      <button onclick="showLogin()">Login</button>
+      <button onclick="showRegister()">Register</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="form hidden" id="loginForm">
+      <h2>Login</h2>
+      <input type="email" id="loginEmail" placeholder="Email">
+      <input type="password" id="loginPassword" placeholder="Password">
+      <button onclick="login()">Login</button>
+      <p onclick="back()">← Kembali</p>
+    </div>
+
+    <!-- REGISTER -->
+    <div class="form hidden" id="registerForm">
+      <h2>Register</h2>
+      <input type="text" id="regName" placeholder="Nama">
+      <input type="email" id="regEmail" placeholder="Email">
+      <input type="password" id="regPassword" placeholder="Password">
+      <button onclick="register()">Register</button>
+      <p onclick="back()">← Kembali</p>
+    </div>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

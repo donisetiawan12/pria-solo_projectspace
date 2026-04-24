@@ -1,19 +1,11 @@
 const mysql = require('mysql2');
 require('dotenv').config();
 
-const db = mysql.createConnection({
+const db = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'projectspace'
 });
 
-db.connect((err) => {
-  if (err) {
-    console.error('❌ DB Error:', err);
-  } else {
-    console.log('✅ Database Connected');
-  }
-});
-
-module.exports = db;
+module.exports = db.promise(); // 🔥 WAJIB
