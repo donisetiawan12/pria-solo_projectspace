@@ -9,9 +9,11 @@ app.use(express.json());
 // ROUTES
 const projectRoutes = require('./routes/projectRoutes');
 const authRoutes = require('./routes/authRoutes');
+const cors = require('cors'); // Tambah ini
 
 app.use('/projects', projectRoutes);
 app.use('/auth', authRoutes);
+app.use(cors()); // Tambah ini di bawah app.use(express.json());
 
 // TEST QUERY
 db.query('SELECT 1 + 1 AS result', (err, result) => {
