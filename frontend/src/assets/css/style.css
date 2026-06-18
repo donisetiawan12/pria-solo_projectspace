@@ -1,0 +1,225 @@
+/* ==========================================================================
+   PROJECTSPACE HOME DASHBOARD STYLING
+   ========================================================================== */
+
+/* Main Base Layout */
+.home-container {
+  min-height: 100vh;
+  background-color: #f4f2ee;
+  color: #191919;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ================= HOME NAVBAR UTAMA ================= */
+.home-navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex: 1; /* Biar flexbox-nya fleksibel */
+}
+
+/* Container cari portofolio */
+.search-container {
+  width: 100%;
+  max-width: 400px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 16px;
+  font-size: 13px;
+  border-radius: 9999px;
+  border: 1px solid #cbd5e1;
+  background-color: #f8fafc;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.search-input:focus {
+  border-color: #0a66c2;
+  background-color: #ffffff;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+/* ================= RESPONSIVE NAVBAR (MOBILE FIX) ================= */
+@media (max-width: 640px) {
+  .home-navbar {
+    padding: 10px 12px; /* Perkecil padding biar gak sempit */
+    gap: 10px;
+  }
+
+  /* Sembunyikan teks menu kosmetik "Beranda" & "Bagikan Repo" di mobile biar gak sumpek */
+  .nav-right button:not(.btn-primary):not(:has(img)):not(:has(div)) {
+    display: none;
+  }
+
+  /* Kecilin input search di mobile biar muat bareng logo */
+  .search-container {
+    max-width: 180px;
+  }
+  
+  .search-input {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+
+  /* Sembunyikan teks nama user di navbar mobile, sisakan avatarnya aja */
+  .nav-right .hidden.sm\:block {
+    display: none !important;
+  }
+  
+  /* Kasih jarak pl-4 dihilangkan atau diperkecil di mobile */
+  .nav-right .border-l {
+    border-left: none;
+    padding-left: 0;
+  }
+}
+
+.search-container {
+  position: relative;
+  width: 100%;
+  max-width: 28rem;
+  display: none; /* Default tersembunyi di HP kecil */
+}
+
+/* Tampilkan search bar dari ukuran tablet ke atas */
+@media (min-width: 768px) {
+  .search-container {
+    display: block;
+  }
+}
+
+.search-input {
+  width: 100%;
+  background-color: #edf3f8;
+  color: #191919;
+  font-size: 0.8rem;
+  border-radius: 0.5rem;
+  padding: 0.6rem 1rem;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  background-color: #ffffff;
+  box-shadow: inset 0 0 0 2px #0a66c2;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+/* MAIN CONTENT GRID: Sistem Grid Pintar Multi-Device */
+.home-main-grid {
+  width: 100%;
+  padding: 2rem; /* Menjaga margin luar sejajar presisi dengan navbar luar */
+  display: grid;
+  grid-template-columns: 1fr; /* Default 1 Kolom untuk HP */
+  gap: 1.5rem;
+  box-sizing: border-box;
+}
+
+/* 📱 RESPONSIVE MODE: TABLET (Layar Medium) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .home-main-grid {
+    grid-template-columns: 260px 1fr; /* 2 Kolom: Kiri profil, kanan feed */
+  }
+  .aside-right {
+    grid-column: span 2; /* Rekomendasi jejaring pindah horizontal ke bawah */
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+}
+
+/* 💻 RESPONSIVE MODE: DESKTOP ULTRA-WIDE / FULL MONITOR */
+@media (min-width: 1024px) {
+  .home-main-grid {
+    /* 3 Kolom sejajar membentang rata dari ujung kiri ke ujung kanan */
+    grid-template-columns: 280px 1fr 300px; 
+  }
+}
+
+/* REUSABLE COMPONENT CARDS */
+.card-white {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.btn-primary {
+  background-color: #0a66c2;
+  color: #ffffff;
+  font-weight: 700;
+  padding: 0.6rem 1.2rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-primary:hover {
+  background-color: #004182;
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.repo-box {
+  background-color: #0d1117;
+  color: #c9d1d9;
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  border: 1px solid #21262d;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

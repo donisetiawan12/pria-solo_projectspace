@@ -21,4 +21,13 @@ const unfollow = (userId, targetId) => {
   );
 };
 
-module.exports = { findFollow, follow, unfollow };
+// 🔥 TAMBAHIN FUNGSI INI BRO BUAT NGITUNG FOLLOWERS
+const countFollowers = (targetId) => {
+  return db.execute(
+    'SELECT COUNT(*) as total FROM follows WHERE following_id = ?',
+    [targetId]
+  );
+};
+
+// 🔥 JANGAN LUPA MASUKIN `countFollowers` DI SINI BIAR BISA DI-REQUIRE CONTROLLER
+module.exports = { findFollow, follow, unfollow, countFollowers };

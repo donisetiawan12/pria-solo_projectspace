@@ -1,7 +1,7 @@
 const projectModel = require('../models/projectModel');
 const { getGithubZip } = require('../utils/github');
 
-// 🔥 GET ALL PROJECTS (FEED)
+// 🔥 GET ALL PROJECTS (FEED) - UPDATE DISESUAIKAN INFO PROFILE & TECH STACK
 exports.getAllProjects = async (req, res) => {
   try {
     const projects = await projectModel.getAllProjects();
@@ -15,8 +15,17 @@ exports.getAllProjects = async (req, res) => {
       demo_link: p.demo_link,
       tags: p.tags,
       is_free: p.is_free,
+      tech_stack: p.tech_stack, // 🔥 TAMBAHKAN INI: Biar tech_stack dari DB ke-pass ke frontend
       created_at: p.created_at,
-      download_url: p.github_link ? getGithubZip(p.github_link) : null
+      download_url: p.github_link ? getGithubZip(p.github_link) : null,
+      
+      // 🔥 Masukin info author ke dalam object project biar dibaca React
+      author: {
+        name: p.user_name || 'Anonymous',
+        nim: p.user_nim || '00000000',                     // Kolom university di DB lu
+        bio: p.user_bio || 'Software Engineering Student', // Kolom bio di DB lu
+        avatar: p.user_avatar ? `http://localhost:3000/uploads/${p.user_avatar}` : null // Path upload foto user jika ada
+      }
     }));
 
     res.json({
@@ -63,7 +72,8 @@ exports.createProject = async (req, res) => {
       github_link,
       demo_link,
       tags,
-      is_free
+      is_free,
+      tech_stack // 🔥 TAMBAHKAN INI: Tangkap tech_stack dari req.body
     } = req.body;
 
     // 🔥 HANDLE UNDEFINED
@@ -72,6 +82,7 @@ exports.createProject = async (req, res) => {
     demo_link = demo_link || null;
     tags = tags || null;
     is_free = is_free ?? 1;
+    tech_stack = tech_stack || null; // 🔥 Tambahkan default null jika kosong
 
     const image = req.file ? req.file.filename : null;
 
@@ -83,7 +94,8 @@ exports.createProject = async (req, res) => {
       github_link,
       demo_link,
       tags,
-      is_free
+      is_free,
+      tech_stack // 🔥 TAMBAHKAN INI: Kirim data tech_stack ke model database
     });
 
     res.json({
@@ -109,7 +121,8 @@ exports.updateProject = async (req, res) => {
       github_link,
       demo_link,
       tags,
-      is_free
+      is_free,
+      tech_stack // 🔥 TAMBAHKAN INI: Tangkap tech_stack untuk fitur edit
     } = req.body;
 
     // 🔥 HANDLE IMAGE
@@ -118,13 +131,14 @@ exports.updateProject = async (req, res) => {
       image = req.file.filename;
     }
 
-    // 🔥 UBah undefined jadi null
+    // 🔥 Ubah undefined jadi null
     title = title || null;
     description = description || null;
     github_link = github_link || null;
     demo_link = demo_link || null;
     tags = tags || null;
     is_free = is_free ?? 1;
+    tech_stack = tech_stack || null; // 🔥 Tambahkan default null jika kosong
 
     // 🔥 CHECK OWNER
     const project = await projectModel.getProjectById(projectId);
@@ -145,7 +159,8 @@ exports.updateProject = async (req, res) => {
       github_link,
       demo_link,
       tags,
-      is_free
+      is_free,
+      tech_stack // 🔥 TAMBAHKAN INI: Kirim data tech_stack ke model update
     );
 
     res.json({

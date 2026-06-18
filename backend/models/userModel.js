@@ -34,11 +34,11 @@ const getUserById = (id) => {
   );
 };
 
-// create user
-const createUser = (name, email, password) => {
+//CREATE USER
+const createUser = async (name, email, password, university, bio) => {
   return db.execute(
-    'INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
-    [name, email, password]
+    'INSERT INTO users (name, email, password, university, bio, role) VALUES (?, ?, ?, ?, ?, "user")',
+    [name, email, password, university, bio]
   );
 };
 
