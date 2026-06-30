@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config(); // 🔥 pastikan env kebaca
 
+// 🔒 1. FUNGSI UTAMA LU (Tetap yang paling berkuasa)
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
@@ -38,4 +39,21 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
+// 🟢 2. FUNGSI OPSIONAL (Kita tempel di dalam objek authMiddleware)
+authMiddleware.optionalAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = decoded; // Sukses baca data Tompel jika ada
+    } catch (err) {
+      console.log('Token expired/invalid di optionalAuth, lanjut sebagai guest.');
+    }
+  }
+  next(); // 🚀 Tetap lolos apa pun yang terjadi
+};
+
+// 🔄 3. KEMBALIKAN EXPORT UTAMA SEPERTI SEMULA (Biar file lain gak pada protes!)
 module.exports = authMiddleware;

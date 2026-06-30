@@ -1,13 +1,14 @@
 const projectModel = require('../models/projectModel');
 const { getGithubZip } = require('../utils/github');
 
-// 🔥 GET ALL PROJECTS (FEED) - UPDATE DISESUAIKAN INFO PROFILE & TECH STACK
 exports.getAllProjects = async (req, res) => {
   try {
-    const projects = await projectModel.getAllProjects();
+    const currentUserId = req.user?.id || null; 
+    const projects = await projectModel.getAllProjects(currentUserId);
 
     const result = projects.map(p => ({
       id: p.id,
+      user_id: p.user_id, 
       title: p.title,
       description: p.description,
       image: p.image ? `http://localhost:3000/uploads/${p.image}` : null,
@@ -15,16 +16,19 @@ exports.getAllProjects = async (req, res) => {
       demo_link: p.demo_link,
       tags: p.tags,
       is_free: p.is_free,
-      tech_stack: p.tech_stack, // 🔥 TAMBAHKAN INI: Biar tech_stack dari DB ke-pass ke frontend
+      tech_stack: p.tech_stack, 
       created_at: p.created_at,
       download_url: p.github_link ? getGithubZip(p.github_link) : null,
+      isFollowing: p.isFollowing === 1 ? 1 : 0,
       
-      // 🔥 Masukin info author ke dalam object project biar dibaca React
+      // 🔥 BARIS INI WAJIB ADA: Penanda apakah project ini milik user yang sedang login
+      isMe: currentUserId && Number(p.user_id) === Number(currentUserId) ? true : false,
+      
       author: {
         name: p.user_name || 'Anonymous',
-        nim: p.user_nim || '00000000',                     // Kolom university di DB lu
-        bio: p.user_bio || 'Software Engineering Student', // Kolom bio di DB lu
-        avatar: p.user_avatar ? `http://localhost:3000/uploads/${p.user_avatar}` : null // Path upload foto user jika ada
+        nim: p.user_nim || '00000000',                     
+        bio: p.user_bio || 'Software Engineering Student', 
+        avatar: p.user_avatar ? `http://localhost:3000/uploads/${p.user_avatar}` : null 
       }
     }));
 
@@ -61,10 +65,15 @@ exports.getProjectById = async (req, res) => {
   }
 };
 
-// 🔥 CREATE PROJECT
+// 🔥 CREATE PROJECT (VERSI SUDAH SINKRON SAMA FRONTEND DONI)
 exports.createProject = async (req, res) => {
   try {
-    const user_id = req.user.id;
+    // 💡 Diubah di sini: Cek ID dari token dulu, kalau ga ada ambil dari req.body (FormData)
+    const user_id = req.user?.id || req.body.user_id;
+
+    if (!user_id) {
+      return res.status(400).json({ message: 'User ID tidak terdeteksi, lu harus login bro!' });
+    }
 
     let {
       title,
@@ -73,7 +82,7 @@ exports.createProject = async (req, res) => {
       demo_link,
       tags,
       is_free,
-      tech_stack // 🔥 TAMBAHKAN INI: Tangkap tech_stack dari req.body
+      tech_stack 
     } = req.body;
 
     // 🔥 HANDLE UNDEFINED
@@ -82,7 +91,7 @@ exports.createProject = async (req, res) => {
     demo_link = demo_link || null;
     tags = tags || null;
     is_free = is_free ?? 1;
-    tech_stack = tech_stack || null; // 🔥 Tambahkan default null jika kosong
+    tech_stack = tech_stack || null; 
 
     const image = req.file ? req.file.filename : null;
 
@@ -95,7 +104,7 @@ exports.createProject = async (req, res) => {
       demo_link,
       tags,
       is_free,
-      tech_stack // 🔥 TAMBAHKAN INI: Kirim data tech_stack ke model database
+      tech_stack 
     });
 
     res.json({

@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import API from '../utils/api'; 
 import '../assets/css/style.css'; 
+import SidebarLeft from '../components/SidebarLeft';
+import SidebarRight from '../components/SidebarRight';
+import Navbar from '../components/Navbar';
 
 
 // Komponen Helper buat "See More" / Potong Deskripsi ala LinkedIn
@@ -50,6 +53,12 @@ export default function Home({ isLoggedIn, onLogout, setIsAuthOpen, setAuthMode 
   const [loading, setLoading] = useState(true);
 
   const [selectedCategory, setSelectedCategory] = useState("All");
+
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const [activeMenuProjectId, setActiveMenuProjectId] = useState(null);
+
+  const [rekomendasiUsers, setRekomendasiUsers] = useState([]);
 
   // STATE UNTUK MODAL UPLOAD PROJECT
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
@@ -170,6 +179,18 @@ export default function Home({ isLoggedIn, onLogout, setIsAuthOpen, setAuthMode 
 
     try {
       const formData = new FormData();
+
+      // 👇 🔥 BARU: AMBIL ID USER YANG SEDANG LOGIN & SISIPKAN KE FORM DATA
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        const parsedUser = JSON.parse(savedUser);
+        if (parsedUser.id) {
+          // Sesuaikan key 'user_id' ini dengan nama kolom di database / request backend lu
+          formData.append('user_id', parsedUser.id); 
+        }
+      }
+      
+      // Data bawaan proyek lu yang lama 👇
       formData.append('title', formProject.title);
       formData.append('description', formProject.description);
       formData.append('github_link', formProject.github_link);
@@ -190,8 +211,8 @@ export default function Home({ isLoggedIn, onLogout, setIsAuthOpen, setAuthMode 
       if (response.data) {
         Swal.fire({
           icon: 'success',
-          title: 'Mantap Bro!',
-          text: 'Project lu berhasil dipublish!',
+          title: 'Mantap!',
+          text: 'Project berhasil dipublish!',
           timer: 2000,
           showConfirmButton: false
         });
@@ -218,6 +239,16 @@ export default function Home({ isLoggedIn, onLogout, setIsAuthOpen, setAuthMode 
 
     try {
       const formData = new FormData();
+      
+      // 👇 1. AMBIL ID DARI LOCALSTORAGE
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        const parsedUser = JSON.parse(savedUser);
+        if (parsedUser.id) {
+          formData.append('id', parsedUser.id); // 🔥 Selipin ID ke Form Data
+        }
+      }
+
       formData.append('name', formProfile.name);
       formData.append('university', formProfile.university);
       formData.append('bio', formProfile.bio);
@@ -269,178 +300,121 @@ export default function Home({ isLoggedIn, onLogout, setIsAuthOpen, setAuthMode 
     return fullName[0].toUpperCase();
   };
 
-  const filteredProjects = projects.filter((proj) => {
-    if (selectedCategory === "All") return true;
+  const isProjectOwner = (proj) => {
+    if (!isLoggedIn) return false;
+    const savedUser = localStorage.getItem('user');
+    if (!savedUser) return false;
     
-    // Sesuaikan teks tags dari backend dengan kategori tombol
-    return proj.tags?.toLowerCase().trim() === selectedCategory.toLowerCase().trim();
+    const parsedUser = JSON.parse(savedUser);
+    // Kita bandingkan user_id dari backend dengan id dari localStorage
+    return proj.user_id == parsedUser.id; 
+  };
+
+ // 🔥 UPGRADE KODE FILTER LU JADI SEPERTI INI:
+  const filteredProjects = projects.filter((proj) => {
+    // 1. Filter Kategori (All, Web App, IoT, Game)
+    const matchesCategory = selectedCategory === "All" || 
+      proj.tags?.toLowerCase().trim() === selectedCategory.toLowerCase().trim();
+
+    // 2. Filter Search Bar (Mencari berdasarkan Judul Project atau Tech Stack)
+    const matchesSearch = 
+      proj.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      proj.tech_stack?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // Project bakal lolos kalau memenuhi dua kondisi di atas
+    return matchesCategory && matchesSearch;
   });
+
+useEffect(() => {
+    const fetchUserPalingAktif = async () => {
+      try {
+        // 🔑 1. AMBIL TOKEN TERBARU DARI LOCALSTORAGE
+        const token = localStorage.getItem('token');
+        
+        // 🔑 2. KIRIM TOKEN SECARA MANUAL DI HEADER AXIOS
+        const resProjects = await API.get('/projects', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        
+        const semuaProject = resProjects.data.data;
+        if (!semuaProject || !Array.isArray(semuaProject)) return;
+
+        const userProjectCount = {};
+
+        semuaProject.forEach((proj) => {
+          const uid = proj.user_id || proj.userId;
+          
+          if (uid) {
+            // 🚫 JIKA INI PROJECT MILIK USER YANG LAGI LOGIN (isMe: true), LANGSUNG SKIP!
+            if (proj.isMe) return;
+
+            const namaUser = proj.author?.name || proj.user?.name || proj.username || proj.name || "Mahasiswa Aktif";
+            const avatarUser = proj.author?.avatar || proj.user?.avatar || proj.avatar || null;
+            const bioUser = proj.author?.bio || proj.user?.bio || proj.bio || "Developer";
+            const univUser = proj.author?.university || proj.user?.university || proj.university || proj.nim || "ProjectSpace Member";
+
+            if (!userProjectCount[uid]) {
+              userProjectCount[uid] = {
+                id: uid,
+                name: namaUser,
+                avatar: avatarUser,
+                bio: bioUser,
+                university: univUser,
+                projectCount: 0,
+                isFollowing: proj.isFollowing === 1 
+              };
+            }
+            userProjectCount[uid].projectCount += 1;
+          }
+        });
+
+        const sortedUsers = Object.values(userProjectCount)
+          .sort((a, b) => b.projectCount - a.projectCount)
+          .slice(0, 5);
+
+        setRekomendasiUsers(sortedUsers);
+      } catch (error) {
+        console.error("Gagal memproses user paling aktif:", error);
+      }
+    };
+
+    fetchUserPalingAktif();
+  }, []); // 💡 Biarkan depedency array kosong atau masukkan state login lu jika ada
 
   return (
     <div className="home-container">
       
-      {/* ================= NAVBAR DASHBOARD ================= */}
-      <nav className="home-navbar">
-        <div className="nav-left">
-          <div className="flex items-center gap-2 cursor-pointer">
-            <div className="bg-[#0a66c2] text-white p-1.5 rounded-md flex items-center justify-center font-bold text-xs tracking-tighter">in</div>
-            <span className="text-lg font-black tracking-tight text-[#0a66c2]">Project<span className="text-slate-800">Space</span></span>
-          </div>
-          <div className="search-container">
-            <input type="text" placeholder="Cari portofolio, tech stack..." className="search-input" />
-          </div>
-        </div>
-
-        <div className="nav-right">
-          <button className="hover:text-black border-b-2 border-slate-800 py-1 px-1 bg-transparent border-t-0 border-x-0 cursor-pointer font-bold">Beranda</button>
-          <button onClick={() => proteksiAksi() && setIsProjectModalOpen(true)} className="hover:text-black py-1 px-1 bg-transparent border-0 cursor-pointer font-bold">
-            Bagikan Repo
-          </button>
-          
-{/* 🔥 UPDATE NAVBAR PROFILE WITH DROPDOWN MENU ALA LINKEDIN */}
-{isLoggedIn ? (
-  <div className="relative border-l border-slate-200 pl-4">
-    
-    {/* Tombol Pemicu Dropdown */}
-    <div 
-      onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)} 
-      className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity select-none"
-    >
-      {user.avatar ? (
-        <img src={user.avatar.startsWith('http') ? user.avatar : `http://localhost:3000/uploads/${user.avatar}`} alt="Profil" className="w-8 h-8 rounded-full object-cover shadow-inner" />
-      ) : (
-        <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-inner">
-          {getInitials(user.name)}
-        </div>
-      )}
-      <div className="text-left hidden sm:flex items-center gap-0.5">
-        <span className="font-black text-slate-900 text-xs leading-tight">{user.name}</span>
-        <span className="text-[10px] text-slate-500">▼</span>
-      </div>
-    </div>
-
-    {/* KOTAK DROPDOWN MENU (Hanya muncul jika state true) */}
-    {isProfileDropdownOpen && (
-      <>
-        {/* Backdrop transparan agar kalau klik di luar dropdown, dropdown-nya otomatis nutup */}
-        <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setIsProfileDropdownOpen(false)}></div>
-        
-        <div className="absolute right-0 mt-2.5 w-64 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-3 transition-all text-left animate-fade-in animate-slide-up">
-          
-          {/* Header Dropdown: Info Singkat Profil */}
-          <div className="px-4 pb-3 flex gap-3 items-center border-b border-slate-100">
-            {user.avatar ? (
-              <img src={user.avatar.startsWith('http') ? user.avatar : `http://localhost:3000/uploads/${user.avatar}`} alt="Profil" className="w-10 h-10 rounded-full object-cover" />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-sm shrink-0">
-                {getInitials(user.name)}
-              </div>
-            )}
-            <div className="overflow-hidden">
-              <h4 className="text-xs font-black text-slate-900 truncate m-0">{user.name}</h4>
-              <p className="text-[10px] text-slate-500 truncate m-0 mt-0.5 font-medium">{user.bio}</p>
-            </div>
-          </div>
-
-          {/* Bagian Tombol View Profile (Pindah Halaman / Buka Popup) */}
-          <div className="p-3 border-b border-slate-100">
-            {/* Di dalam Dropdown Navbar Anda */}
-             <button 
-            onClick={() => {
-              setIsProfileDropdownOpen(false); // Tutup box dropdownnya
-              navigate('/profile');            // Gas pindah ke halaman /profile secara smooth!
-            }}
-            className="w-full bg-transparent hover:bg-blue-50 text-[#0a66c2] border border-[#0a66c2] rounded-full py-1 text-xs font-bold cursor-pointer"
-          >
-            View Profile
-          </button>
-          </div>
-
-          {/* Bagian Account/Manage Menu */}
-          <div className="flex flex-col py-1 text-slate-600 font-bold text-[11px]">
-           
-
-            {/* Tombol Sign out */}
-            <button 
-              onClick={() => {
-                setIsProfileDropdownOpen(false);
-                onLogout();
-              }}
-              className="px-4 py-2 mt-1 hover:bg-red-50 text-red-500 text-left bg-transparent border-0 cursor-pointer font-bold transition-colors"
-            >
-              Sign out
-            </button>
-          </div>
-
-        </div>
-      </>
-    )}
-
-  </div>
-) : (
-            <div className="border-l border-slate-200 pl-4">
-              <button onClick={bukaModalLogin} className="btn-primary">Login / Masuk</button>
-            </div>
-          )}
-        </div>
-      </nav>
+      <Navbar 
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          proteksiAksi={proteksiAksi}
+          setIsProjectModalOpen={setIsProjectModalOpen}
+          isLoggedIn={isLoggedIn}
+          user={user}
+          isProfileDropdownOpen={isProfileDropdownOpen}
+          setIsProfileDropdownOpen={setIsProfileDropdownOpen}
+          navigate={navigate}
+          onLogout={onLogout}
+          bukaModalLogin={bukaModalLogin}
+        />
 
       {/* ================= MAIN CONTENT GRID ================= */}
       <div className="home-main-grid">
         
-        {/* 1. SIDEBAR LEFT */}
-          <aside className="flex flex-col gap-4">
-            <div 
-              onClick={() => isLoggedIn && setIsProfileModalOpen(true)} 
-              className="bg-white rounded-2xl border border-slate-200/80 shadow-sm text-center cursor-pointer hover:shadow-md hover:scale-[1.005] transition-all duration-200 overflow-hidden group"
-            >
-              {/* Banner Background */}
-              <div className="h-14 bg-gradient-to-r from-blue-700 to-blue-500 group-hover:opacity-95 transition-opacity"></div>
-              
-              <div className="px-4 pb-5 relative">
-                {/* Avatar / Foto Profil */}
-                {user.avatar ? (
-                  <img 
-                    src={user.avatar.startsWith('http') ? user.avatar : `http://localhost:3000/uploads/${user.avatar}`} 
-                    alt="Profil Utama" 
-                    className="w-16 h-16 rounded-full border-4 border-white mx-auto -mt-8 shadow-md object-cover" 
-                  />
-                ) : (
-                  <div className="w-16 h-16 rounded-full bg-slate-900 border-4 border-white text-white flex items-center justify-center font-black text-xl mx-auto -mt-8 shadow-md">
-                    {getInitials(user.name)}
-                  </div>
-                )}
-
-                {/* Nama & Universitas */}
-                <h4 className="text-sm font-black text-slate-900 mt-2 m-0 group-hover:text-blue-600 transition-colors">
-                  {user.name} 
-                  {isLoggedIn && <span className="text-[10px] text-slate-400 font-normal block mt-0.5">{user.university}</span>}
-                </h4>
-
-                {/* Bio / Headline */}
-                <p className="text-[11px] text-slate-500 mt-1 leading-normal px-2 font-medium m-0">
-                  {user.bio} {isLoggedIn && '🚀'}
-                </p>
-
-                {isLoggedIn && (
-                  <span className="text-[9px] text-blue-500 font-bold block mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                    ⚙️ Klik untuk ubah profil
-                  </span>
-                )}
-              </div>
-            </div>
-          </aside>
-
+        <SidebarLeft 
+          user={user} 
+          isLoggedIn={isLoggedIn} 
+          setIsProfileModalOpen={setIsProfileModalOpen} 
+        />
        {/* 2. FEED MIDDLE */}
         <main className="flex flex-col gap-4">
-         
-
-          {/* ================= 🔥 BARU: MENU FILTER KATEGORI ALA LINKEDIN ================= */}
+        
          {/* ================= 🔥 BARU: MENU FILTER KATEGORI POLOS ALA LINKEDIN ================= */}
           <div className="flex justify-between items-center bg-transparent py-2 px-1">
             <span className="text-xs font-black text-slate-700 uppercase tracking-wider">Semua Portofolio</span>
-            <div className="flex gap-2">
-              {["All", "Web App", "IoT", "Game"].map((cat) => (
+            <div className="flex gap-2 flex-wrap"> {/* 👈 Di sini tambahin flex-wrap */}
+              {/* 👇 Di bawah ini array-nya udah lengkap sesuai input form lu */}
+              {["All", "Web App", "Mobile App", "IoT", "Game", "AI / ML"].map((cat) => (
                 <button
                   key={cat}
                   type="button"
@@ -469,23 +443,66 @@ export default function Home({ isLoggedIn, onLogout, setIsAuthOpen, setAuthMode 
               <div key={proj.id} className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 text-left flex flex-col gap-4 hover:shadow-md transition-shadow duration-200">
                 
                 {/* 1. HEADER USER PROFILE */}
-                <div className="flex justify-between items-center">
+                {/* 1. HEADER USER PROFILE */}
+                <div className="flex justify-between items-center relative"> {/* Tambah class relative */}
                   <div className="flex gap-3 items-center">
-                    <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-slate-800 to-slate-950 text-white flex items-center justify-center font-bold text-sm shadow-sm ring-2 ring-slate-100">
-                      {getInitials(proj.author_name || 'U')}
+                    <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-slate-800 to-slate-950 text-white flex items-center justify-center font-bold text-sm shadow-sm ring-2 ring-slate-100 overflow-hidden">
+                      {proj.author?.avatar ? (
+                        <img src={proj.author.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        getInitials(proj.author?.name || 'U')
+                      )}
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-slate-900 m-0 hover:text-blue-600 cursor-pointer transition-colors">{proj.author_name || 'Anonymous'}</h4>
+                      <h4 className="text-sm font-bold text-slate-900 m-0 hover:text-blue-600 cursor-pointer transition-colors">{proj.author?.name || 'Anonymous'}</h4>
                       <p className="text-[11px] text-slate-500 font-medium m-0 flex items-center gap-1">
-                        <span>{proj.author_university || 'Mahasiswa'}</span>
+                        <span>{proj.author?.nim || 'Mahasiswa'}</span>
                         <span className="text-slate-300">•</span>
                         <span>Baru saja</span>
                       </p>
                     </div>
                   </div>
-                  <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-3 py-1 rounded-full border border-blue-100 uppercase tracking-wider">
-                    {proj.tags}
-                  </span>
+
+                  {/* 🛠️ SISI KANAN: TEMPAT TAG KATEGORI DAN MENU TITIK 3 */}
+                  <div className="flex items-center gap-2">
+                    <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-3 py-1 rounded-full border border-blue-100 uppercase tracking-wider">
+                      {proj.tags}
+                    </span>
+
+                    {/* 🔥 TOMBOL TITIK 3 HANYA MUNCUL JIKA INI PROJECT LU (OWNER) */}
+                    {isProjectOwner(proj) && (
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation(); // Biar ga ke-trigger klik detail card
+                            setActiveMenuProjectId(activeMenuProjectId === proj.id ? null : proj.id);
+                          }}
+                          className="text-slate-400 hover:text-slate-700 font-bold bg-transparent border-0 px-2 py-1 cursor-pointer text-base rounded-lg hover:bg-slate-100 transition-colors"
+                        >
+                          •••
+                        </button>
+
+                        {/* 📋 DROPDOWN MENU EDIT */}
+                        {activeMenuProjectId === proj.id && (
+                          <div className="absolute right-0 mt-1 w-32 bg-white border border-slate-200 rounded-xl shadow-lg z-30 py-1 animate-fade-in text-left">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveMenuProjectId(null);
+                                // ⚡ Sementara alert dulu, nanti fungsi open modal edit taruh di sini
+                                Swal.fire('Info', 'Fungsi edit buat project ini otw dikerjakan bro!', 'info');
+                              }}
+                              className="w-full text-left bg-transparent border-0 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer flex items-center gap-2"
+                            >
+                              ✏️ Edit Project
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* 2. TEXT DESCRIPTION */}
@@ -561,17 +578,10 @@ export default function Home({ isLoggedIn, onLogout, setIsAuthOpen, setAuthMode 
           )}
         </main>
 
-        {/* 3. SIDEBAR RIGHT */}
-        <aside className="aside-right text-left">
-          <div className="card-white p-4">
-            <h5 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-4 mt-0">Kembangkan Jaringan</h5>
-            <div className="flex flex-col gap-3 text-xs font-semibold text-slate-700">
-              <p>Siti Rahma - UI/UX Student</p>
-              <p>Ferdy Pratama - Mobile Developer</p>
-            </div>
-          </div>
-        </aside>
-      </div>
+<SidebarRight 
+  rekomendasiUsers={rekomendasiUsers} 
+  bukaModalLogin={bukaModalLogin} // 🔥 OPER FUNGSI LOGIN NAVBAR LU KE SINI!
+/>     </div>
 
       {/* ================= MODAL INPUT PROJECT BARU ================= */}
       {isProjectModalOpen && (
@@ -581,7 +591,7 @@ export default function Home({ isLoggedIn, onLogout, setIsAuthOpen, setAuthMode 
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <div className="flex items-center gap-2">
                 <i className="fa-solid fa-folder-plus text-[#0a66c2] text-lg"></i>
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider m-0">Bagikan Project Karya Lu</h3>
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider m-0">Bagikan Project Karya</h3>
               </div>
               <button onClick={() => setIsProjectModalOpen(false)} className="text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer text-lg font-bold">
                 &times;
@@ -718,7 +728,7 @@ export default function Home({ isLoggedIn, onLogout, setIsAuthOpen, setAuthMode 
       <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
         <div className="flex items-center gap-2">
           <span className="text-lg">📝</span>
-          <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider m-0">Edit Profil Lu</h3>
+          <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider m-0">Edit Profil</h3>
         </div>
         <button onClick={() => setIsProfileModalOpen(false)} className="text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer text-lg font-bold">
           &times;
@@ -805,13 +815,27 @@ export default function Home({ isLoggedIn, onLogout, setIsAuthOpen, setAuthMode 
             <div className="w-full md:w-2/5 flex flex-col h-full bg-[#161b22]">
               <div className="p-5 border-b border-[#30363d] flex justify-between items-start shrink-0">
                 <div className="flex gap-3 items-center">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-700 to-slate-900 text-white flex items-center justify-center font-bold text-xs ring-2 ring-slate-800">
-                    {getInitials(activeProjectDetails.author_name || 'U')}
+                  
+                  {/* 👇 1. FIX FOTO PROFIL / INISIAL AUTHOR */}
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-700 to-slate-900 text-white flex items-center justify-center font-bold text-xs ring-2 ring-slate-800 overflow-hidden">
+                    {activeProjectDetails.author?.avatar ? (
+                      <img src={activeProjectDetails.author.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      getInitials(activeProjectDetails.author?.name || 'U')
+                    )}
                   </div>
+                  
                   <div className="text-left">
-                    <h4 className="text-xs font-bold text-white m-0">{activeProjectDetails.author_name || 'Anonymous'}</h4>
-                    <p className="text-[10px] text-slate-400 font-medium m-0 mt-0.5">{activeProjectDetails.author_university || 'Mahasiswa'}</p>
+                    {/* 👇 2. FIX NAMA AUTHOR */}
+                    <h4 className="text-xs font-bold text-white m-0">
+                      {activeProjectDetails.author?.name || 'Anonymous'}
+                    </h4>
+                    {/* 👇 3. FIX NIM / UNIVERSITAS AUTHOR */}
+                    <p className="text-[10px] text-slate-400 font-medium m-0 mt-0.5">
+                      {activeProjectDetails.author?.nim || 'Mahasiswa'}
+                    </p>
                   </div>
+
                 </div>
                 <button onClick={() => setActiveProjectDetails(null)} className="text-slate-400 hover:text-white bg-transparent border-0 cursor-pointer text-xl font-bold p-1 leading-none">
                   &times;

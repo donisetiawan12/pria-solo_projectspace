@@ -29,10 +29,12 @@ app.use((req, res, next) => {
 const authRoutes = require('./routes/authRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const userRoutes = require('./routes/userRoutes');
+const followRoutes = require('./routes/followRoutes'); // 🔥 TAMBAHKAN INI
 // 6. PENGGUNAAN ROUTES
 app.use('/auth', authRoutes);         
 app.use('/projects', projectRoutes);   
 app.use('/users', userRoutes); // 🔥 TAMBAHKAN INI biar frontend bisa akses /users/profile
+app.use('/follows', followRoutes); // 🔥 TAMBAHKAN INI (Gua set pake jamak '/follows')
 // 7. TEST KONEKSI DATABASE
 // =================================================================
 db.query('SELECT 1 + 1 AS result')

@@ -1,18 +1,19 @@
 const db = require('../config/db');
 
-// 🔥 GET ALL PROJECTS (Sudah dioptimasi biar dapet info lengkap author-nya)
-exports.getAllProjects = async () => {
+exports.getAllProjects = async (currentUserId = null) => {
   const [rows] = await db.execute(`
     SELECT 
       projects.*, 
       users.name as user_name,
-      users.university as user_nim,  -- <--- Kita tarik NIM-nya buat nampil di feed
-      users.bio as user_bio,          -- <--- Kita tarik Headline-nya 
-      users.avatar as user_avatar     -- <--- Kita tarik Foto Profilnya
+      users.university as user_nim,  
+      users.bio as user_bio,          
+      users.avatar as user_avatar,
+      IF(follows.follower_id IS NOT NULL, 1, 0) as isFollowing
     FROM projects
     JOIN users ON projects.user_id = users.id
+    LEFT JOIN follows ON projects.user_id = follows.following_id AND follows.follower_id = ?
     ORDER BY projects.created_at DESC
-  `);
+  `, [currentUserId]); 
 
   return rows;
 };
