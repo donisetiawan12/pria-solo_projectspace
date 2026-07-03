@@ -1,6 +1,6 @@
 const db = require('../config/db');
 
-// ambil user by email
+// Ambil user by email
 const getUserByEmail = (email) => {
   return db.execute(
     'SELECT * FROM users WHERE email = ?',
@@ -8,7 +8,7 @@ const getUserByEmail = (email) => {
   );
 };
 
-// ambil user by id
+// Ambil user by id
 const getUserById = (id) => {
   return db.execute(
     'SELECT * FROM users WHERE id = ?',
@@ -77,11 +77,30 @@ const getRecommendedUsers = async (currentUserId) => {
   return users;
 };
 
+// 🔥 1. FUNGSI TAMBAH RELASI FOLLOW DARI TEMEN
+const addFollower = async (followerId, followingId) => {
+  return db.execute(
+    'INSERT INTO followers (follower_id, following_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE follower_id=follower_id', 
+    [followerId, followingId]
+  );
+};
+
+// 🔥 2. FUNGSI MASUKIN DATA NOTIFIKASI DARI TEMEN
+const createNotification = async (data) => {
+  return db.execute(
+    'INSERT INTO notifications (recipient_id, sender_id, type, project_id) VALUES (?, ?, ?, ?)',
+    [data.recipient_id, data.sender_id, data.type, data.project_id]
+  );
+};
+
+// 🔥 EXPORT SEMUA FITUR SECARA ADIL & LENGKAP
 module.exports = {
   getUserByEmail,
   getUserById,
   createUser,
   toggleFollowUser,
   getMutualConnectionsCount,
-  getRecommendedUsers
+  getRecommendedUsers,
+  addFollower,
+  createNotification
 };

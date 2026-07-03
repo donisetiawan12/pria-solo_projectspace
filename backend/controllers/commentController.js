@@ -1,6 +1,8 @@
 const commentModel = require('../models/commentModel');
+const projectModel = require('../models/projectModel'); // 🔥 Butuh ini buat nyari owner project
+const userModel = require('../models/userModel');       // 🔥 Butuh ini buat kirim notif
 
-// 🔥 1. TAMBAH KOMENTAR
+// 🔥 1. TAMBAH KOMENTAR + NOTIFIKASI
 exports.addComment = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -11,12 +13,38 @@ exports.addComment = async (req, res) => {
       return res.status(400).json({ message: 'Komentar tidak boleh kosong bro bro!' });
     }
 
+    // A. Jalankan proses simpan komentar bawaan lu
     await commentModel.addComment(
       userId,
       projectId,
       comment,
       parent_id || null
     );
+
+    // B. 🔥 TRIGGER NOTIFIKASI KOMENTAR
+    try {
+      // Cari pemilik project berdasarkan ID project
+      const project = await projectModel.getProjectById(projectId);
+      const projectData = Array.isArray(project) ? project[0] : project;
+
+      if (projectData && projectData.user_id) {
+        const recipient_id = projectData.user_id;
+
+        // Proteksi: Jangan kirim notif ke diri sendiri kalau komen di project sendiri
+        if (Number(userId) !== Number(recipient_id)) {
+          await userModel.createNotification({
+            recipient_id: recipient_id,
+            sender_id: userId,
+            type: 'comment', // 👈 Tipe datanya: comment
+            project_id: projectId
+          });
+          console.log(`✅ Notifikasi KOMENTAR dari user ${userId} berhasil disimpan.`);
+        }
+      }
+    } catch (notifError) {
+      // Log kalau sistem notif error, tapi route tetep ngasih response sukses ke user
+      console.error("❌ Gagal memproses notif komentar:", notifError.message);
+    }
 
     res.json({ message: 'Comment added successfully' });
   } catch (error) {

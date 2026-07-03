@@ -4,14 +4,13 @@ export default function SidebarLeft({ user: propsUser, isLoggedIn, setIsProfileM
   const [savedProjects, setSavedProjects] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // 🔥 SAKTI 1: Saat pertama kali muncul, lgsg intip localStorage biar dapet data paling segar (Bukan data jadul dari parent)
+  // 🔥 SAKTI 1: Saat pertama kali muncul, lgsg intip localStorage biar dapet data paling segar
   const [currentUser, setCurrentUser] = useState(() => {
     const localData = localStorage.getItem('user');
     return localData ? JSON.parse(localData) : propsUser;
   });
 
-  // 🔥 SAKTI 2: Setiap kali komponen induk me-render ulang / oper props baru, 
-  // proteksi data sidebar agar TETAP mengutamakan isi localStorage yang sudah lu update di halaman profil!
+  // 🔥 SAKTI 2: Setiap kali komponen induk me-render ulang / oper props baru, proteksi data sidebar
   useEffect(() => {
     const localData = localStorage.getItem('user');
     if (localData) {
@@ -43,53 +42,66 @@ export default function SidebarLeft({ user: propsUser, isLoggedIn, setIsProfileM
     };
   }, []);
 
-  // AMBIL DATA BOOKMARK DARI BACKEND
+  // 🔄 FUNGSI AMBIL DATA BOOKMARK DARI BACKEND + SUNTIK DATA AUTHOR
+  const fetchMyBookmarks = async (showLoading = false) => {
+    if (!isLoggedIn) return;
+    if (showLoading) setLoading(true);
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('http://localhost:3000/bookmarks/my-bookmarks', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const resData = await response.json();
+        const rawBookmarks = resData.data || [];
+
+        // 💡 Format data mentah dari DB biar punya objek 'author'
+        const formattedBookmarks = rawBookmarks.map(proj => {
+          if (!proj.author) {
+            return {
+              ...proj,
+              author: {
+                name: currentUser?.name || 'User',
+                avatar: currentUser?.avatar || null,
+                nim: currentUser?.university || 'Mahasiswa'
+              }
+            };
+          }
+          return proj;
+        });
+
+        setSavedProjects(formattedBookmarks);
+      }
+    } catch (error) {
+      console.error("Gagal load bookmark di sidebar:", error);
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
+
+  // 🔥 SYSTEM AUTO-FETCH SIDEBAR (POLLING 2 DETIK SEKALI DARI AKUN TEMEN LU)
   useEffect(() => {
     if (isLoggedIn) {
-      const fetchMyBookmarks = async () => {
-        setLoading(true);
-        try {
-          const token = localStorage.getItem('token');
-          if (!token) return;
+      // Panggil pertama kali dengan efek loading aktif
+      fetchMyBookmarks(true);
 
-          const response = await fetch('http://localhost:3000/bookmarks/my-bookmarks', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
+      // Set interval untuk terus ngecek database tiap 2 detik
+      const interval = setInterval(() => {
+        fetchMyBookmarks(false);
+      }, 2000);
 
-          if (response.ok) {
-            const resData = await response.json();
-            const rawBookmarks = resData.data || [];
-
-            const formattedBookmarks = rawBookmarks.map(proj => {
-              if (!proj.author) {
-                return {
-                  ...proj,
-                  author: {
-                    name: currentUser?.name || 'User',
-                    avatar: currentUser?.avatar || null,
-                    nim: currentUser?.university || 'Mahasiswa'
-                  }
-                };
-              }
-              return proj;
-            });
-
-            setSavedProjects(formattedBookmarks);
-          }
-        } catch (error) {
-          console.error("Gagal load bookmark di sidebar:", error);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      fetchMyBookmarks();
+      // Bersihkan interval biar gak makan ram pas pindah page / logout
+      return () => clearInterval(interval);
     } else {
       setSavedProjects([]);
     }
-  }, [isLoggedIn, currentUser]); 
+  }, [isLoggedIn, currentUser]);
 
   const getInitials = (fullName) => {
     if (!fullName) return '?';
@@ -156,12 +168,13 @@ export default function SidebarLeft({ user: propsUser, isLoggedIn, setIsProfileM
             <h5 className="text-xs font-black text-slate-800 m-0 flex items-center gap-1.5">
               🔖 Project Tersimpan
             </h5>
-            <span className="bg-blue-50 text-blue-600 font-black text-[10px] px-2 py-0.5 rounded-full">
+            <span className="bg-blue-50 text-blue-600 font-black text-[10px] px-2 py-0.5 rounded-full animate-fade-in">
               {savedProjects.length}
             </span>
           </div>
 
-          <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+          {/* LIST MINI PROJECT */}
+          <div className="max-h-48 overflow-y-auto flex flex-col gap-2 pr-1">
             {loading ? (
               <p className="text-[10px] text-slate-400 text-center m-0 py-2">Memuat data...</p>
             ) : savedProjects.length === 0 ? (
@@ -173,7 +186,10 @@ export default function SidebarLeft({ user: propsUser, isLoggedIn, setIsProfileM
                 <div 
                   key={proj.id} 
                   className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100/70 transition-all cursor-pointer group/item"
-                  onClick={() => setActiveProjectDetails(proj)}
+                  onClick={() => {
+                    console.log("ISI DATA BOOKMARK DARI SIDEBAR:", proj);
+                    setActiveProjectDetails(proj);
+                  }}
                 >
                   {proj.image ? (
                     <img src={proj.image} className="w-8 h-8 rounded-lg object-cover bg-slate-100 border border-slate-100" alt={proj.title} />

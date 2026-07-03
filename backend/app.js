@@ -1,5 +1,5 @@
 // =================================================================
-// app.js (VERSI FULL FIX - SEMUA ROUTE TERMASUK LIKES & COMMENTS)
+// app.js (VERSI FULL FIX + INTEGRASI JALUR NOTIFIKASI)
 // =================================================================
 
 const express = require('express');
@@ -31,8 +31,9 @@ const projectRoutes = require('./routes/projectRoutes');
 const userRoutes = require('./routes/userRoutes');
 const followRoutes = require('./routes/followRoutes');
 const likeRoutes = require('./routes/likeRoutes'); 
-const commentRoutes = require('./routes/commentRoutes');// 🔥 SEKARANG KOMENTAR JALURNYA DIIMPORT DI SINI!
+const commentRoutes = require('./routes/commentRoutes'); // 🔥 SEKARANG KOMENTAR JALURNYA DIIMPORT DI SINI!
 const bookmarkRoutes = require('./routes/bookmarkRoutes');
+const notificationRoutes = require('./routes/notificationRoutes'); // 🔥 BARU: Jalur Notifikasi Impor
 
 
 // 6. PENGGUNAAN ROUTES
@@ -43,6 +44,7 @@ app.use('/follows', followRoutes);
 app.use('/likes', likeRoutes); 
 app.use('/comments', commentRoutes); // 🔥 SEKARANG JALUR KOMENTAR RESMI DIBUKA DI SINI!
 app.use('/bookmarks', bookmarkRoutes); // 🔥 SEKARANG JALUR BOOKMARK RESMI DIBUKA DI SINI!
+app.use('/notifications', notificationRoutes); // 🔥 BARU: RESMI DIBUKA DI SINI!
 
 // 7. TEST KONEKSI DATABASE
 // =================================================================

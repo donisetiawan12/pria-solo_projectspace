@@ -1,10 +1,12 @@
 const bookmarkModel = require('../models/bookmarkModel');
+const projectModel = require('../models/projectModel'); 
+const userModel = require('../models/userModel');       
 
-// 🔥 1. TOGGLE BOOKMARK (SIMPAN / HAPUS)
+// 🔥 1. TOGGLE BOOKMARK (SIMPAN / HAPUS) + NOTIFIKASI
 exports.toggleBookmark = async (req, res) => {
   try {
     const userId = req.user.id;
-    const projectId = req.params.id; // 💡 Ganti jadi .id biar singkron sama route /:id
+    const projectId = req.params.id; 
 
     const existing = await bookmarkModel.checkBookmark(userId, projectId);
 
@@ -13,6 +15,30 @@ exports.toggleBookmark = async (req, res) => {
       return res.json({ message: 'Bookmark dihapus', isBookmarked: false });
     } else {
       await bookmarkModel.addBookmark(userId, projectId);
+
+      // 🔥 TRIGGER NOTIFIKASI BOOKMARK
+      try {
+        const project = await projectModel.getProjectById(projectId);
+        const projectData = Array.isArray(project) ? project[0] : project;
+
+        if (projectData && projectData.user_id) {
+          const recipient_id = projectData.user_id;
+
+          // Jangan kirim ke diri sendiri
+          if (Number(userId) !== Number(recipient_id)) {
+            await userModel.createNotification({
+              recipient_id: recipient_id,
+              sender_id: userId,
+              type: 'bookmark', 
+              project_id: projectId
+            });
+            console.log(`✅ Notifikasi BOOKMARK berhasil disimpan.`);
+          }
+        }
+      } catch (notifError) {
+        console.error("❌ Gagal memproses notif bookmark:", notifError.message);
+      }
+
       return res.json({ message: 'Project di-bookmark', isBookmarked: true });
     }
 
@@ -22,13 +48,12 @@ exports.toggleBookmark = async (req, res) => {
   }
 };
 
-// 🔥 2. AMBIL DAFTAR BOOKMARK SAYA (Buat di halaman khusus saved projects)
+// 🔥 2. AMBIL DAFTAR BOOKMARK SAYA
 exports.getMyBookmarks = async (req, res) => {
   try {
     const userId = req.user.id;
     const data = await bookmarkModel.getUserBookmarks(userId);
 
-    // Rapiin static path gambar project biar gak broken image pas di-render
     const result = data.map(p => ({
       ...p,
       image: p.image ? `http://localhost:3000/uploads/${p.image}` : null

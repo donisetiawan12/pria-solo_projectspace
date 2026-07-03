@@ -27,10 +27,10 @@ export default function LandingPage({ onLogin, onExplore }) {
       <nav className="w-full max-w-7xl mx-auto px-6 py-4 flex justify-between items-center border-b border-[#21262d] relative z-10">
         <div className="flex items-center gap-2">
           <div className="bg-[#0a66c2] text-white p-1.5 rounded-lg flex items-center justify-center font-bold text-sm tracking-tighter shadow-md">
-            in
+            ps
           </div>
           <span className="text-xl font-extrabold text-white tracking-tight">
-            Project<span className="text-[#58a6ff]">Space</span>
+            Project<span className="text-[#58a6ff]"> Space</span>
           </span>
         </div>
 
