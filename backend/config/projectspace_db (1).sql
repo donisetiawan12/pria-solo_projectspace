@@ -2,10 +2,10 @@
 -- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- Host: localhost
--- Waktu pembuatan: 18 Jun 2026 pada 14.40
--- Versi server: 10.4.28-MariaDB
--- Versi PHP: 8.0.28
+-- Host: 127.0.0.1
+-- Generation Time: Jul 03, 2026 at 05:04 PM
+-- Server version: 10.4.32-MariaDB
+-- PHP Version: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -24,7 +24,7 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- Struktur dari tabel `bookmarks`
+-- Table structure for table `bookmarks`
 --
 
 CREATE TABLE `bookmarks` (
@@ -35,7 +35,7 @@ CREATE TABLE `bookmarks` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data untuk tabel `bookmarks`
+-- Dumping data for table `bookmarks`
 --
 
 INSERT INTO `bookmarks` (`id`, `user_id`, `project_id`, `created_at`) VALUES
@@ -44,7 +44,7 @@ INSERT INTO `bookmarks` (`id`, `user_id`, `project_id`, `created_at`) VALUES
 -- --------------------------------------------------------
 
 --
--- Struktur dari tabel `comments`
+-- Table structure for table `comments`
 --
 
 CREATE TABLE `comments` (
@@ -57,7 +57,7 @@ CREATE TABLE `comments` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data untuk tabel `comments`
+-- Dumping data for table `comments`
 --
 
 INSERT INTO `comments` (`id`, `user_id`, `project_id`, `comment`, `created_at`, `parent_id`) VALUES
@@ -66,7 +66,7 @@ INSERT INTO `comments` (`id`, `user_id`, `project_id`, `comment`, `created_at`, 
 -- --------------------------------------------------------
 
 --
--- Struktur dari tabel `follows`
+-- Table structure for table `follows`
 --
 
 CREATE TABLE `follows` (
@@ -77,16 +77,17 @@ CREATE TABLE `follows` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data untuk tabel `follows`
+-- Dumping data for table `follows`
 --
 
 INSERT INTO `follows` (`id`, `follower_id`, `following_id`, `created_at`) VALUES
-(1, 1, 2, '2026-05-02 17:41:39');
+(1, 1, 2, '2026-05-02 17:41:39'),
+(3, 5, 3, '2026-07-03 15:03:58');
 
 -- --------------------------------------------------------
 
 --
--- Struktur dari tabel `likes`
+-- Table structure for table `likes`
 --
 
 CREATE TABLE `likes` (
@@ -99,7 +100,7 @@ CREATE TABLE `likes` (
 -- --------------------------------------------------------
 
 --
--- Struktur dari tabel `projects`
+-- Table structure for table `projects`
 --
 
 CREATE TABLE `projects` (
@@ -113,20 +114,22 @@ CREATE TABLE `projects` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `is_free` tinyint(1) DEFAULT 1,
   `tags` varchar(255) DEFAULT NULL,
+  `tech_stack` text DEFAULT NULL,
   `views` int(11) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data untuk tabel `projects`
+-- Dumping data for table `projects`
 --
 
-INSERT INTO `projects` (`id`, `user_id`, `title`, `description`, `image`, `github_link`, `demo_link`, `created_at`, `is_free`, `tags`, `views`) VALUES
-(2, 3, 'Project User1 ', 'test', '1777743459478-990180363.png', 'https://github.com/donisetiawan12/pria-solo_projectspace.git', NULL, '2026-05-02 17:37:39', 1, NULL, 0);
+INSERT INTO `projects` (`id`, `user_id`, `title`, `description`, `image`, `github_link`, `demo_link`, `created_at`, `is_free`, `tags`, `tech_stack`, `views`) VALUES
+(2, 3, 'Project User1 ', 'test', '1777743459478-990180363.png', 'https://github.com/donisetiawan12/pria-solo_projectspace.git', NULL, '2026-05-02 17:37:39', 1, NULL, NULL, 0),
+(3, 5, 'project gua', 'project ini adalah [punya gua ', '1783086773004-52676208.png', 'https://github.com', 'https://orderly.web.id', '2026-07-03 13:52:53', 1, 'Web App', NULL, 0);
 
 -- --------------------------------------------------------
 
 --
--- Struktur dari tabel `project_images`
+-- Table structure for table `project_images`
 --
 
 CREATE TABLE `project_images` (
@@ -138,7 +141,7 @@ CREATE TABLE `project_images` (
 -- --------------------------------------------------------
 
 --
--- Struktur dari tabel `users`
+-- Table structure for table `users`
 --
 
 CREATE TABLE `users` (
@@ -148,26 +151,29 @@ CREATE TABLE `users` (
   `password` varchar(255) NOT NULL,
   `university` varchar(100) DEFAULT NULL,
   `bio` text DEFAULT NULL,
+  `about` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `avatar` varchar(255) DEFAULT NULL,
   `role` enum('user','admin') DEFAULT 'user'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data untuk tabel `users`
+-- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `name`, `email`, `password`, `university`, `bio`, `created_at`, `avatar`, `role`) VALUES
-(1, 'User1', 'user1@gmail.com', '$2b$10$2sPTjuRqT4Oek18U4h6Q2erK9ueBpNlxBMkhkElQyaFir1ZoecisW', NULL, NULL, '2026-05-02 17:30:29', NULL, 'user'),
-(2, 'User2', 'user2@gmail.com', '$2b$10$fap/EK5/dLyFv4hsYHYZ.Ooqs2JKeDKwzhKdDeQG3rDn0lrqdINGa', NULL, NULL, '2026-05-02 17:31:01', NULL, 'user'),
-(3, 'User3', 'user3@gmail.com', '$2b$10$6rVU5KJICsSoVcG2aUSUEeNUrdAMFGRs/DcMyzovGrZ9OQLTnLtay', NULL, NULL, '2026-05-02 17:36:22', NULL, 'user');
+INSERT INTO `users` (`id`, `name`, `email`, `password`, `university`, `bio`, `about`, `created_at`, `avatar`, `role`) VALUES
+(1, 'User1', 'user1@gmail.com', '$2b$10$2sPTjuRqT4Oek18U4h6Q2erK9ueBpNlxBMkhkElQyaFir1ZoecisW', NULL, NULL, NULL, '2026-05-02 17:30:29', NULL, 'user'),
+(2, 'User2', 'user2@gmail.com', '$2b$10$fap/EK5/dLyFv4hsYHYZ.Ooqs2JKeDKwzhKdDeQG3rDn0lrqdINGa', NULL, NULL, NULL, '2026-05-02 17:31:01', NULL, 'user'),
+(3, 'User3', 'user3@gmail.com', '$2b$10$6rVU5KJICsSoVcG2aUSUEeNUrdAMFGRs/DcMyzovGrZ9OQLTnLtay', NULL, NULL, NULL, '2026-05-02 17:36:22', NULL, 'user'),
+(4, 'tompel', 'tompel@gmail.com', '$2b$10$25Pmc2gLOu6ZsJ5cLlgB..DeLuoHgb8dd7vB3gwF0JRn10Kt05YLW', '023123', 'uiux aja dah', NULL, '2026-07-03 13:36:35', 'avatar-1783086221038.png', 'user'),
+(5, 'tes', 'tes@gmail.com', '$2b$10$Ysmx2nKxq44Ewph9AbrHIulwhaJPgw5MGPcSjBMdk7ybcUgcw/hsK', '2131121', 'Developer ', NULL, '2026-07-03 13:50:31', 'avatar-1783086791699.png', 'user');
 
 --
 -- Indexes for dumped tables
 --
 
 --
--- Indeks untuk tabel `bookmarks`
+-- Indexes for table `bookmarks`
 --
 ALTER TABLE `bookmarks`
   ADD PRIMARY KEY (`id`),
@@ -175,7 +181,7 @@ ALTER TABLE `bookmarks`
   ADD KEY `project_id` (`project_id`);
 
 --
--- Indeks untuk tabel `comments`
+-- Indexes for table `comments`
 --
 ALTER TABLE `comments`
   ADD PRIMARY KEY (`id`),
@@ -184,7 +190,7 @@ ALTER TABLE `comments`
   ADD KEY `idx_comments_project` (`project_id`);
 
 --
--- Indeks untuk tabel `follows`
+-- Indexes for table `follows`
 --
 ALTER TABLE `follows`
   ADD PRIMARY KEY (`id`),
@@ -192,7 +198,7 @@ ALTER TABLE `follows`
   ADD KEY `following_id` (`following_id`);
 
 --
--- Indeks untuk tabel `likes`
+-- Indexes for table `likes`
 --
 ALTER TABLE `likes`
   ADD PRIMARY KEY (`id`),
@@ -201,7 +207,7 @@ ALTER TABLE `likes`
   ADD KEY `project_id` (`project_id`);
 
 --
--- Indeks untuk tabel `projects`
+-- Indexes for table `projects`
 --
 ALTER TABLE `projects`
   ADD PRIMARY KEY (`id`),
@@ -209,105 +215,105 @@ ALTER TABLE `projects`
   ADD KEY `idx_projects_user` (`user_id`);
 
 --
--- Indeks untuk tabel `project_images`
+-- Indexes for table `project_images`
 --
 ALTER TABLE `project_images`
   ADD PRIMARY KEY (`id`),
   ADD KEY `project_id` (`project_id`);
 
 --
--- Indeks untuk tabel `users`
+-- Indexes for table `users`
 --
 ALTER TABLE `users`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `email` (`email`);
 
 --
--- AUTO_INCREMENT untuk tabel yang dibuang
+-- AUTO_INCREMENT for dumped tables
 --
 
 --
--- AUTO_INCREMENT untuk tabel `bookmarks`
+-- AUTO_INCREMENT for table `bookmarks`
 --
 ALTER TABLE `bookmarks`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
--- AUTO_INCREMENT untuk tabel `comments`
+-- AUTO_INCREMENT for table `comments`
 --
 ALTER TABLE `comments`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
--- AUTO_INCREMENT untuk tabel `follows`
+-- AUTO_INCREMENT for table `follows`
 --
 ALTER TABLE `follows`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
--- AUTO_INCREMENT untuk tabel `likes`
+-- AUTO_INCREMENT for table `likes`
 --
 ALTER TABLE `likes`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
--- AUTO_INCREMENT untuk tabel `projects`
+-- AUTO_INCREMENT for table `projects`
 --
 ALTER TABLE `projects`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
--- AUTO_INCREMENT untuk tabel `project_images`
+-- AUTO_INCREMENT for table `project_images`
 --
 ALTER TABLE `project_images`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
--- AUTO_INCREMENT untuk tabel `users`
+-- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
--- Ketidakleluasaan untuk tabel pelimpahan (Dumped Tables)
+-- Constraints for dumped tables
 --
 
 --
--- Ketidakleluasaan untuk tabel `bookmarks`
+-- Constraints for table `bookmarks`
 --
 ALTER TABLE `bookmarks`
   ADD CONSTRAINT `bookmarks_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `bookmarks_ibfk_2` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE;
 
 --
--- Ketidakleluasaan untuk tabel `comments`
+-- Constraints for table `comments`
 --
 ALTER TABLE `comments`
   ADD CONSTRAINT `comments_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `comments_ibfk_2` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE;
 
 --
--- Ketidakleluasaan untuk tabel `follows`
+-- Constraints for table `follows`
 --
 ALTER TABLE `follows`
   ADD CONSTRAINT `follows_ibfk_1` FOREIGN KEY (`follower_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `follows_ibfk_2` FOREIGN KEY (`following_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
--- Ketidakleluasaan untuk tabel `likes`
+-- Constraints for table `likes`
 --
 ALTER TABLE `likes`
   ADD CONSTRAINT `likes_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `likes_ibfk_2` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE;
 
 --
--- Ketidakleluasaan untuk tabel `projects`
+-- Constraints for table `projects`
 --
 ALTER TABLE `projects`
   ADD CONSTRAINT `projects_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
--- Ketidakleluasaan untuk tabel `project_images`
+-- Constraints for table `project_images`
 --
 ALTER TABLE `project_images`
   ADD CONSTRAINT `project_images_ibfk_1` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE;

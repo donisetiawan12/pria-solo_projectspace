@@ -68,7 +68,6 @@ exports.getProjectById = async (req, res) => {
 // 🔥 CREATE PROJECT (VERSI SUDAH SINKRON SAMA FRONTEND DONI)
 exports.createProject = async (req, res) => {
   try {
-    // 💡 Diubah di sini: Cek ID dari token dulu, kalau ga ada ambil dari req.body (FormData)
     const user_id = req.user?.id || req.body.user_id;
 
     if (!user_id) {
@@ -124,6 +123,7 @@ exports.updateProject = async (req, res) => {
     const projectId = req.params.id;
     const userId = req.user.id;
 
+    // 🔴 SEKARANG KITA AMBIL TECH_STACK DARI REQ.BODY, GAK DIBUANG LAGI!
     let {
       title,
       description,
@@ -131,7 +131,7 @@ exports.updateProject = async (req, res) => {
       demo_link,
       tags,
       is_free,
-      tech_stack // 🔥 TAMBAHKAN INI: Tangkap tech_stack untuk fitur edit
+      tech_stack
     } = req.body;
 
     // 🔥 HANDLE IMAGE
@@ -147,7 +147,7 @@ exports.updateProject = async (req, res) => {
     demo_link = demo_link || null;
     tags = tags || null;
     is_free = is_free ?? 1;
-    tech_stack = tech_stack || null; // 🔥 Tambahkan default null jika kosong
+    tech_stack = tech_stack || null; // 🔴 Handle tech_stack kalo kosong
 
     // 🔥 CHECK OWNER
     const project = await projectModel.getProjectById(projectId);
@@ -160,6 +160,7 @@ exports.updateProject = async (req, res) => {
       return res.status(403).json({ message: 'Bukan punya lu bro 😄' });
     }
 
+    // 🔴 SEKARANG DATA TECH_STACK IKUT DIKIRIM KE MODEL BIAR DIUPDATE DI MYSQL
     await projectModel.updateProject(
       projectId,
       title,
@@ -169,7 +170,7 @@ exports.updateProject = async (req, res) => {
       demo_link,
       tags,
       is_free,
-      tech_stack // 🔥 TAMBAHKAN INI: Kirim data tech_stack ke model update
+      tech_stack
     );
 
     res.json({
