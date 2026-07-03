@@ -700,11 +700,23 @@ const handleToggleBookmark = async (projectId) => {
     });
 
     if (response.ok) {
-      // 🔥 TRICK SAKTI: Ganti warna bookmark langsung di layar
+      // 🔥 TRICK SAKTI: Ganti warna & manipulasi angka counter secara realtime di layar!
       setProjects((prevProjects) =>
-        prevProjects.map((p) =>
-          p.id === projectId ? { ...p, isBookmarked: !p.isBookmarked } : p
-        )
+        prevProjects.map((p) => {
+          if (p.id === projectId) {
+            const statusTerbaru = !p.isBookmarked; // Cek status setelah diklik (true/false)
+            
+            return { 
+              ...p, 
+              isBookmarked: statusTerbaru,
+              // Kalau statusnya jadi true (disimpan) -> Angka + 1. Kalau false (dihapus) -> Angka - 1
+              bookmarksCount: statusTerbaru 
+                ? (p.bookmarksCount || 0) + 1 
+                : Math.max(0, (p.bookmarksCount || 0) - 1)
+            };
+          }
+          return p;
+        })
       );
     }
   } catch (error) {
@@ -1010,20 +1022,25 @@ const handleToggleBookmark = async (projectId) => {
     <span>{proj.commentsCount || 0} Comments</span>
   </button>
 
-  {/* 3. TOMBOL BOOKMARK (Udah disesuaiin pake proj) */}
-  <button 
-    type="button" 
-    onClick={(e) => {
-      e.stopPropagation();
-      handleToggleBookmark(proj.id); // 👈 Pake proj
-    }}
-    className={`flex items-center gap-2 hover:bg-slate-50 px-3 py-2 rounded-lg bg-transparent border-0 cursor-pointer transition-colors ${
-      proj.isBookmarked ? 'text-blue-600' : 'text-slate-600'
-    }`}
-  >
-    <span className="text-sm">{proj.isBookmarked ? '🔖' : '📑'}</span> 
-    <span>{proj.isBookmarked ? 'Saved' : 'Bookmark'}</span>
-  </button>
+  {/* 3. TOMBOL BOOKMARK (Udah disesuaiin pake proj + munculin total angka) */}
+<button 
+  type="button" 
+  onClick={(e) => {
+    e.stopPropagation();
+    handleToggleBookmark(proj.id); // 👈 Pake proj
+  }}
+  className={`flex items-center gap-2 hover:bg-slate-50 px-3 py-2 rounded-lg bg-transparent border-0 cursor-pointer transition-colors ${
+    proj.isBookmarked ? 'text-blue-600 font-bold' : 'text-slate-600'
+  }`}
+>
+  <span className="text-sm">{proj.isBookmarked ? '🔖' : '📑'}</span> 
+  <span>{proj.isBookmarked ? 'Saved' : 'Bookmark'}</span>
+  
+  {/* 🔥 ANGKA COUNTER BOOKMARK REALTIME */}
+  <span className="bg-slate-100 text-slate-700 text-[10px] px-1.5 py-0.5 rounded-full font-bold min-w-4 text-center group-hover:bg-slate-200">
+    {proj.bookmarksCount || 0}
+  </span>
+</button>
 
 </div>
 

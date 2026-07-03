@@ -1,57 +1,69 @@
 import React, { useState, useEffect } from 'react';
 
-export default function SidebarLeft({ user, isLoggedIn, setIsProfileModalOpen, setActiveProjectDetails }) {  const [savedProjects, setSavedProjects] = useState([]);
+export default function SidebarLeft({ user, isLoggedIn, setIsProfileModalOpen, setActiveProjectDetails }) {
+  const [savedProjects, setSavedProjects] = useState([]);
   const [loading, setLoading] = useState(false);
 
- // 1. AMBIL DATA BOOKMARK DARI BACKEND + SUNTIK DATA AUTHOR
+  // 🔄 FUNGSI AMBIL DATA BOOKMARK DARI BACKEND + SUNTIK DATA AUTHOR
+  const fetchMyBookmarks = async (showLoading = false) => {
+    if (!isLoggedIn) return;
+    if (showLoading) setLoading(true);
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('http://localhost:3000/bookmarks/my-bookmarks', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const resData = await response.json();
+        const rawBookmarks = resData.data || [];
+
+        // 💡 Format data mentah dari DB biar punya objek 'author'
+        const formattedBookmarks = rawBookmarks.map(proj => {
+          if (!proj.author) {
+            return {
+              ...proj,
+              author: {
+                name: user?.name || 'User',
+                avatar: user?.avatar || null,
+                nim: user?.university || 'Mahasiswa'
+              }
+            };
+          }
+          return proj;
+        });
+
+        setSavedProjects(formattedBookmarks);
+      }
+    } catch (error) {
+      console.error("Gagal load bookmark di sidebar:", error);
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
+
+  // 🔥 SYSTEM AUTO-FETCH SIDEBAR (POLLING 5 DETIK SEKALI)
   useEffect(() => {
     if (isLoggedIn) {
-      const fetchMyBookmarks = async () => {
-        setLoading(true);
-        try {
-          const token = localStorage.getItem('token');
-          if (!token) return;
+      // Panggil pertama kali dengan efek loading aktif
+      fetchMyBookmarks(true);
 
-          const response = await fetch('http://localhost:3000/bookmarks/my-bookmarks', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
+      // Set interval untuk terus ngecek database tiap 5 detik (tanpa bikin loading kedap-kedip)
+      const interval = setInterval(() => {
+        fetchMyBookmarks(false);
+      }, 2000);
 
-          if (response.ok) {
-            const resData = await response.json();
-            const rawBookmarks = resData.data || [];
-
-            // 🔥 TRICK SAKTI: Format data mentah dari DB biar punya objek 'author'
-            const formattedBookmarks = rawBookmarks.map(proj => {
-              if (!proj.author) {
-                return {
-                  ...proj,
-                  author: {
-                    name: user?.name || 'User',
-                    avatar: user?.avatar || null,
-                    nim: user?.university || 'Mahasiswa'
-                  }
-                };
-              }
-              return proj;
-            });
-
-            // Set data yang udah matang dan lengkap ke state sidebar
-            setSavedProjects(formattedBookmarks);
-          }
-        } catch (error) {
-          console.error("Gagal load bookmark di sidebar:", error);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      fetchMyBookmarks();
+      // Bersihkan interval biar gak makan ram pas pindah page / logout
+      return () => clearInterval(interval);
     } else {
       setSavedProjects([]);
     }
-  }, [isLoggedIn, user]); // 💡 Tambahin 'user' di sini supaya datanya sinkron saat login!
+  }, [isLoggedIn, user]);
 
   const getInitials = (fullName) => {
     if (!fullName) return '?';
@@ -107,13 +119,13 @@ export default function SidebarLeft({ user, isLoggedIn, setIsProfileModalOpen, s
             <h5 className="text-xs font-black text-slate-800 m-0 flex items-center gap-1.5">
               🔖 Project Tersimpan
             </h5>
-            <span className="bg-blue-50 text-blue-600 font-black text-[10px] px-2 py-0.5 rounded-full">
+            <span className="bg-blue-50 text-blue-600 font-black text-[10px] px-2 py-0.5 rounded-full animate-fade-in">
               {savedProjects.length}
             </span>
           </div>
 
           {/* LIST MINI PROJECT */}
-          <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+          <div className="max-h-48 overflow-y-auto flex flex-col gap-2 pr-1">
             {loading ? (
               <p className="text-[10px] text-slate-400 text-center m-0 py-2">Memuat data...</p>
             ) : savedProjects.length === 0 ? (
@@ -122,27 +134,25 @@ export default function SidebarLeft({ user, isLoggedIn, setIsProfileModalOpen, s
               </p>
             ) : (
               savedProjects.map((proj) => (
-  <div 
-    key={proj.id} 
-    className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100/70 transition-all cursor-pointer group/item"
-    onClick={() => {
-      console.log("ISI DATA BOOKMARK DARI SIDEBAR:", proj);
-      // 🔥 TRICK SAKTI: Masukkan data project ke state activeProjectDetails
-      setActiveProjectDetails(proj);
-    }}
-  >
-    {/* ... Sisa isi card project (foto, title, description) lu tetep sama di bawahnya ... */}
-    {proj.image ? (
-      <img src={proj.image} className="w-8 h-8 rounded-lg object-cover bg-slate-100 border border-slate-100" alt={proj.title} />
-    ) : (
-      <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center font-bold text-xs">💻</div>
-    )}
-    <div className="flex-1 min-w-0">
-      <p className="text-[11px] font-bold text-slate-700 m-0 truncate group-hover/item:text-blue-600 transition-colors">{proj.title}</p>
-      <p className="text-[9px] text-slate-400 m-0 truncate">{proj.description?.replace(/[#*]/g, '') || 'Tidak ada deskripsi'}</p>
-    </div>
-  </div>
-))
+                <div 
+                  key={proj.id} 
+                  className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100/70 transition-all cursor-pointer group/item"
+                  onClick={() => {
+                    console.log("ISI DATA BOOKMARK DARI SIDEBAR:", proj);
+                    setActiveProjectDetails(proj);
+                  }}
+                >
+                  {proj.image ? (
+                    <img src={proj.image} className="w-8 h-8 rounded-lg object-cover bg-slate-100 border border-slate-100" alt={proj.title} />
+                  ) : (
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center font-bold text-xs">💻</div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold text-slate-700 m-0 truncate group-hover/item:text-blue-600 transition-colors">{proj.title}</p>
+                    <p className="text-[9px] text-slate-400 m-0 truncate">{proj.description?.replace(/[#*]/g, '') || 'Tidak ada deskripsi'}</p>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>

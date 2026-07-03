@@ -65,8 +65,8 @@ export default function App() {
                 {/* NAVBAR */}
                 <nav className="w-full max-w-7xl mx-auto px-6 py-4 flex justify-between items-center border-b border-[#21262d] relative z-10">
                   <div className="flex items-center gap-2">
-                    <div className="bg-[#0a66c2] text-white p-1.5 rounded-lg flex items-center justify-center font-bold text-sm tracking-tighter shadow-md shadow-blue-500/10">in</div>
-                    <span className="text-xl font-extrabold text-white tracking-tight">Project<span className="text-[#58a6ff]">Space</span></span>
+                    <div className="bg-[#0a66c2] text-white p-1.5 rounded-lg flex items-center justify-center font-bold text-sm tracking-tighter shadow-md shadow-blue-500/10">PS</div>
+                    <span className="text-xl font-extrabold text-white tracking-tight">Project<span className="text-[#58a6ff]"> Space</span></span>
                   </div>
                   <button onClick={() => openAuth("login")} className="bg-[#0a66c2] hover:bg-[#004182] text-white text-xs font-bold px-5 py-2.5 rounded-lg transition-all shadow-md active:scale-95">
                     Masuk / Sign In
