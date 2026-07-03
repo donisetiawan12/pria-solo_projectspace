@@ -36,18 +36,37 @@ exports.getAllProjects = async (currentUserId = null) => {
 };
 
 // 🔥 GET PROJECT BY ID
-exports.getProjectById = async (id) => {
+// 🔥 GET PROJECT BY ID (VERSI LENGKAP REALTIME + BOOKMARK COUNT)
+exports.getProjectById = async (id, currentUserId = null) => {
   const [rows] = await db.execute(`
     SELECT 
       projects.*, 
       users.name as user_name,
       users.university as user_nim,
       users.bio as user_bio,
-      users.avatar as user_avatar
+      users.avatar as user_avatar,
+      IF(follows.follower_id IS NOT NULL, 1, 0) as isFollowing,
+      
+      -- 🟢 1. Hitung total likes secara realtime
+      (SELECT COUNT(*) FROM likes WHERE likes.project_id = projects.id) as likesCount,
+      
+      -- 🟢 2. Hitung total comments secara realtime
+      (SELECT COUNT(*) FROM comments WHERE comments.project_id = projects.id) as commentsCount,
+      
+      -- 🔖 🔥 3. Hitung total bookmarks secara realtime (BIAR PAS REFRESH GAK ILANG)
+      (SELECT COUNT(*) FROM bookmarks WHERE bookmarks.project_id = projects.id) as bookmarksCount,
+      
+      -- 🟢 4. Cek status like user saat ini
+      IF((SELECT COUNT(*) FROM likes WHERE likes.project_id = projects.id AND likes.user_id = ?) > 0, 1, 0) as isLiked,
+      
+      -- 🟢 5. Cek status bookmark user saat ini
+      IF((SELECT COUNT(*) FROM bookmarks WHERE bookmarks.project_id = projects.id AND bookmarks.user_id = ?) > 0, 1, 0) as isBookmarked
+
     FROM projects
     JOIN users ON projects.user_id = users.id
+    LEFT JOIN follows ON projects.user_id = follows.following_id AND follows.follower_id = ?
     WHERE projects.id = ?
-  `, [id]);
+  `, [currentUserId, currentUserId, currentUserId, id]); // 👈 Masukkan currentUserId (3x) dan ID Project di paling akhir
 
   return rows[0];
 };
