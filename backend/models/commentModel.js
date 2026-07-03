@@ -18,4 +18,13 @@ const getComments = (projectId) => {
   );
 };
 
-module.exports = { addComment, getComments };
+// 🔥 TAMBAHKAN FUNGSI HAPUS INI BRO
+const deleteComment = (commentId, userId) => {
+  return db.execute(
+    'DELETE FROM comments WHERE id = ? AND user_id = ?',
+    [commentId, userId]
+  );
+};
+
+// Pastikan didaftarkan di sini biar bisa diimport di controller
+module.exports = { addComment, getComments, deleteComment };

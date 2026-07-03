@@ -581,10 +581,26 @@ const openCommentModal = async (projectObj) => {
       return;
     }
 
+    // 🔑 AMBIL DAN DECODE TOKEN SECARA MANUAL UNTUK CEK USER YANG LOGIN
+    let currentUserId = null;
+    const activeToken = localStorage.getItem('token');
+    if (activeToken) {
+      try {
+        const base64Url = activeToken.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('0' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const decoded = JSON.parse(jsonPayload);
+        currentUserId = decoded.id; // Ambil ID user dari payload token
+      } catch (e) {
+        console.error("Gagal decode token di modal:", e);
+      }
+    }
+
     // 1. Ambil data komentar dari backend
     const response = await fetch(`http://localhost:3000/comments/${projectObj.id}`);
     
-    // 🔥 PENGAMAN 1: Jika server ngasih HTML eror/404, stop di sini biar gak bikin layar putih!
     if (!response.ok) {
       Swal.fire({ icon: 'error', title: 'Aduh Bro', text: 'Gagal memuat daftar komentar untuk project ini.' });
       return;
@@ -605,18 +621,85 @@ const openCommentModal = async (projectObj) => {
         const avatarUrl = c.user_avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
         const teksKomen = c.comment || ''; 
         
+        // 🔥 AKURAT: Cek kepemilikan komentar berdasarkan ID dari token
+        const isMyComment = currentUserId && Number(c.user_id) === Number(currentUserId);
+
         commentsHTML += `
-          <div style="display: flex; gap: 8px; align-items: flex-start; margin-bottom: 12px;">
+          <div id="comment-box-${c.id}" style="display: flex; gap: 8px; align-items: flex-start; margin-bottom: 12px; position: relative;">
             <img src="${avatarUrl}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid #e2e8f0; margin-top: 2px;" />
-            <div style="background-color: #f8fafc; border-radius: 12px; padding: 10px; flex: 1;">
-              <p style="font-weight: 800; color: #1e293b; font-size: 12px; margin: 0; margin-bottom: 2px;">${c.user_name || 'Anonymous'}</p>
-              <p style="color: #475569; font-size: 12px; font-weight: 400; margin: 0; line-height: 1.5;">${teksKomen}</p>
+            <div style="background-color: #f8fafc; border-radius: 12px; padding: 10px; flex: 1; display: flex; justify-content: space-between; align-items: flex-start;">
+              <div style="flex: 1; text-align: left;">
+                <p style="font-weight: 800; color: #1e293b; font-size: 12px; margin: 0; margin-bottom: 2px;">${c.user_name || 'Anonymous'}</p>
+                <p style="color: #475569; font-size: 12px; font-weight: 400; margin: 0; line-height: 1.5;">${teksKomen}</p>
+              </div>
+              
+              ${isMyComment ? `
+                <button 
+                  onclick="window.deleteCommentGlobal(${c.id}, ${projectObj.id})" 
+                  style="background: transparent; border: none; color: #ef4444; font-size: 11px; cursor: pointer; padding: 2px 4px; margin-left: 6px; font-weight: bold; border-radius: 4px;"
+                  onmouseover="this.style.backgroundColor='#fee2e2'" 
+                  onmouseout="this.style.backgroundColor='transparent'"
+                  title="Hapus Komentar"
+                >
+                  🗑️
+                </button>
+              ` : ''}
             </div>
           </div>
         `;
       });
     }
     commentsHTML += `</div>`;
+
+    // 🛑 DAFTARKAN FUNGSI HAPUS GLOBAL DI WINDOW OBJECT
+    window.deleteCommentGlobal = async (commentId, projectId) => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const confirmDelete = await Swal.fire({
+        title: 'Hapus komentar?',
+        text: 'Komentar ini bakal ilang permanen!',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, Hapus!',
+        cancelButtonText: 'Batal',
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        customClass: { popup: 'rounded-2xl' }
+      });
+
+      if (!confirmDelete.isConfirmed) return;
+
+      try {
+        const response = await fetch(`http://localhost:3000/comments/${commentId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          // 🪄 Trick DOM: Langsung hapus elemen dari modal layar
+          const commentEl = document.getElementById(`comment-box-${commentId}`);
+          if (commentEl) commentEl.remove();
+
+          // 📉 Kurangi counter komentar di halaman utama secara realtime
+          if (typeof setProjects === "function") {
+            setProjects((prevProjects) =>
+              prevProjects.map((p) =>
+                p.id === projectId ? { ...p, commentsCount: Math.max(0, (p.commentsCount || 0) - 1) } : p
+              )
+            );
+          }
+
+          Swal.fire({ icon: 'success', title: 'Terhapus!', text: 'Komentar berhasil dihapus.', timer: 1200, showConfirmButton: false });
+        } else {
+          Swal.fire({ icon: 'error', title: 'Gagal', text: 'Gak bisa hapus komentar ini bro.' });
+        }
+      } catch (err) {
+        console.error("Gagal hapus komentar:", err);
+      }
+    };
 
     // 3. Tampilkan Pop-up SweetAlert2
     Swal.fire({
@@ -660,7 +743,6 @@ const openCommentModal = async (projectObj) => {
         if (sendResponse.ok) {
           Swal.fire({ icon: 'success', title: 'Komen Terkirim!', showConfirmButton: false, timer: 1200 });
 
-          // 🔥 PENGAMAN 2: Cek dulu apakah fungsi state updater ada di file ini, biar gak crash pas diklik dari sidebar
           if (typeof setProjects === "function") {
             setProjects((prevProjects) =>
               prevProjects.map((p) =>
@@ -668,9 +750,6 @@ const openCommentModal = async (projectObj) => {
               )
             );
           }
-          
-          // 🔥 TAMBAHAN: Kalau mau sidebar-nya ikut terupdate otomatis angkanya tanpa reload, lu bisa panggil fetch bookmark lagi di sini nantinya.
-
         } else {
           const errData = await sendResponse.json();
           Swal.fire({ icon: 'error', title: 'Gagal Komen', text: errData.message });

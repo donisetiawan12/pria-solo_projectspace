@@ -48,22 +48,23 @@ export default function SidebarLeft({ user, isLoggedIn, setIsProfileModalOpen, s
   };
 
   // 🔥 SYSTEM AUTO-FETCH SIDEBAR (POLLING 5 DETIK SEKALI)
-  useEffect(() => {
-    if (isLoggedIn) {
-      // Panggil pertama kali dengan efek loading aktif
-      fetchMyBookmarks(true);
+ // 🔥 SYSTEM AUTO-FETCH SIDEBAR (VERSI AMAN DARI DOUBLE REQUEST)
+useEffect(() => {
+  if (isLoggedIn) {
+    // Panggil pertama kali saat komponen nge-load
+    fetchMyBookmarks(true);
 
-      // Set interval untuk terus ngecek database tiap 5 detik (tanpa bikin loading kedap-kedip)
-      const interval = setInterval(() => {
-        fetchMyBookmarks(false);
-      }, 2000);
+    // Set interval 2 detik
+    const interval = setInterval(() => {
+      fetchMyBookmarks(false);
+    }, 2000);
 
-      // Bersihkan interval biar gak makan ram pas pindah page / logout
-      return () => clearInterval(interval);
-    } else {
-      setSavedProjects([]);
-    }
-  }, [isLoggedIn, user]);
+    // 🛑 INI YANG PENTING: Bersihkan interval lama sebelum bikin yang baru!
+    return () => clearInterval(interval);
+  } else {
+    setSavedProjects([]);
+  }
+}, [isLoggedIn]); // 👈 Cukup masukin isLoggedIn aja bro, 'user' hapus aja biar gak trigger double!
 
   const getInitials = (fullName) => {
     if (!fullName) return '?';

@@ -74,3 +74,24 @@ exports.getComments = async (req, res) => {
     res.status(500).json({ message: 'Internal Server Error' });
   }
 };
+
+// 🔥 3. HAPUS KOMENTAR MASING-MASING (DENGAN PROTEKSI USER_ID)
+exports.deleteComment = async (req, res) => {
+  try {
+    const commentId = req.params.commentId;
+    const userId = req.user.id; // Ambil id user dari token login authMiddleware
+
+    // Jalankan query hapus ke model
+    const [result] = await commentModel.deleteComment(commentId, userId);
+
+    // Proteksi: Jika affectedRows === 0, artinya id komentar gak ada, ATAU itu bukan komentar dia
+    if (result.affectedRows === 0) {
+      return res.status(403).json({ message: 'Gak bisa hapus komentar orang lain bro!' });
+    }
+
+    res.json({ message: 'Comment deleted successfully' });
+  } catch (error) {
+    console.error("DELETE COMMENT ERROR:", error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
