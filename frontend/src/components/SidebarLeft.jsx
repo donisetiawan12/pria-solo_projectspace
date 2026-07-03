@@ -69,7 +69,7 @@ export default function SidebarLeft({ user: propsUser, isLoggedIn, setIsProfileM
               author: {
                 name: currentUser?.name || 'User',
                 avatar: currentUser?.avatar || null,
-                nim: currentUser?.university || 'Mahasiswa'
+                nim: currentUser?.nim || 'Mahasiswa' // 🟢 FIX: university diganti ke nim
               }
             };
           }
@@ -85,7 +85,7 @@ export default function SidebarLeft({ user: propsUser, isLoggedIn, setIsProfileM
     }
   };
 
-  // 🔥 SYSTEM AUTO-FETCH SIDEBAR (POLLING 2 DETIK SEKALI DARI AKUN TEMEN LU)
+  // 🔥 SYSTEM AUTO-FETCH SIDEBAR
   useEffect(() => {
     if (isLoggedIn) {
       // Panggil pertama kali dengan efek loading aktif
@@ -144,13 +144,21 @@ export default function SidebarLeft({ user: propsUser, isLoggedIn, setIsProfileM
             </div>
           )}
 
-          <h4 className="text-sm font-black text-slate-900 mt-2 m-0 group-hover:text-blue-600 transition-colors">
-            {currentUser?.name} 
-            {isLoggedIn && <span className="text-[10px] text-slate-400 font-normal block mt-0.5">{currentUser?.university}</span>}
-          </h4>
+          {/* 🟢 CARI BAGIAN JUDUL H4 INI DI SIDEBARLEFT LU, TRUS GANTI JADI KAYAK GINI: */}
+<h4 className="text-sm font-black text-slate-900 mt-2 m-0 group-hover:text-blue-600 transition-colors flex flex-col items-center">
+  {/* Nama User */}
+  <span>{currentUser?.name}</span>
+  
+  {/* 🎯 NIM ditaruh tepat di bawah nama */}
+  {isLoggedIn && currentUser?.nim && (
+    <span className="text-[10px] text-[#4f46e5] bg-[#e0e7ff] px-2 py-0.5 rounded font-black tracking-wide uppercase mt-1">
+      NIM {currentUser.nim}
+    </span>
+  )}
+</h4>
 
-          <p className="text-[11px] text-slate-500 mt-1 leading-normal px-2 font-medium m-0">
-            {currentUser?.bio} {isLoggedIn && '🚀'}
+          <p className="text-[11px] text-slate-500 mt-1.5 leading-normal px-2 font-medium m-0">
+            {currentUser?.bio || 'Belum ada bidang keahlian 🚀'}
           </p>
 
           {isLoggedIn && (

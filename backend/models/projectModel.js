@@ -6,7 +6,7 @@ exports.getAllProjects = async (currentUserId = null) => {
     SELECT 
       projects.*, 
       users.name as user_name,
-      users.university as user_nim,  
+      users.nim as user_nim,  -- 🟢 FIX: Diubah ke nim karena university sudah dihapus
       users.bio as user_bio,          
       users.avatar as user_avatar,
       IF(follows.follower_id IS NOT NULL, 1, 0) as isFollowing,
@@ -35,14 +35,13 @@ exports.getAllProjects = async (currentUserId = null) => {
   return rows;
 };
 
-// 🔥 GET PROJECT BY ID
 // 🔥 GET PROJECT BY ID (VERSI LENGKAP REALTIME + BOOKMARK COUNT)
 exports.getProjectById = async (id, currentUserId = null) => {
   const [rows] = await db.execute(`
     SELECT 
       projects.*, 
       users.name as user_name,
-      users.university as user_nim,
+      users.nim as user_nim, -- 🟢 FIX: Diubah juga ke nim biar pas buka detail project ga error
       users.bio as user_bio,
       users.avatar as user_avatar,
       IF(follows.follower_id IS NOT NULL, 1, 0) as isFollowing,

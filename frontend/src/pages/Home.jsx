@@ -392,65 +392,74 @@ const handleDeleteProject = async (id) => {
     }
   };
 
-  const handleUpdateProfile = async (e) => {
-    e.preventDefault();
-    if (!formProfile.name.trim()) {
-      return Swal.fire({ icon: 'error', title: 'Oops!', text: 'Nama wajib diisi bro!' });
+const handleUpdateProfile = async (e) => {
+  e.preventDefault();
+  
+  // 1. Ambil data dari localStorage
+  const localData = localStorage.getItem('user');
+  const targetUser = localData ? JSON.parse(localData) : null;
+
+  if (!targetUser || !targetUser.id) {
+    alert("Sesi login tidak terbaca bro, silakan login ulang.");
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('id', targetUser.id); 
+    formData.append('name', formProfile.name || '');
+    formData.append('bio', formProfile.bio || '');     
+    formData.append('nim', formProfile.nim || ''); 
+
+    if (typeof selectedAvatar !== 'undefined' && selectedAvatar) {
+      formData.append('avatar', selectedAvatar);
     }
 
-    try {
-      const formData = new FormData();
-      const savedUser = localStorage.getItem('user');
-      if (savedUser && savedUser !== "undefined") {
-        const parsedUser = JSON.parse(savedUser);
-        if (parsedUser.id) {
-          formData.append('id', parsedUser.id); 
-        }
-      }
+    const token = localStorage.getItem('token');
+    const response = await fetch('http://localhost:3000/users/profile', {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    });
 
-      formData.append('name', formProfile.name);
-      formData.append('university', formProfile.university);
-      formData.append('bio', formProfile.bio);
-      if (selectedAvatar) {
-        formData.append('avatar', selectedAvatar);
-      }
+    const resData = await response.json();
 
-      Swal.showLoading();
-      const response = await API.put('/users/profile', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+    if (response.ok && resData.user) {
+      // Update data di local storage
+      const updatedUserData = { ...targetUser, ...resData.user };
+      delete updatedUserData.university; 
+      localStorage.setItem('user', JSON.stringify(updatedUserData));
+      
+      // Kirim signal update ke Sidebar
+      window.dispatchEvent(new Event("profileUpdated"));
+      setIsProfileModalOpen(false);
 
-      if (response.data) {
+      // 🎯 SOLUSI ALERT: Kasih jeda / tunggu user klik OK baru reload
+      if (typeof Swal !== 'undefined') {
+        // Jika pakai SweetAlert2
         Swal.fire({
           icon: 'success',
-          title: 'Profil Diupdate!',
-          text: 'Data profil lu berhasil diperbarui bro.',
-          timer: 1500,
-          showConfirmButton: false
+          title: 'Berhasil!',
+          text: 'Profil sukses diperbarui!',
+          confirmButtonColor: '#0a66c2'
+        }).then(() => {
+          window.location.reload(); // Reload jalan SETELAH user klik OK
         });
-        
-        const updatedUser = response.data.user; 
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        
-        setUser({
-          name: updatedUser.name,
-          university: updatedUser.university,
-          bio: updatedUser.bio,
-          avatar: updatedUser.avatar
-        });
-        
-        setIsProfileModalOpen(false);
-        fetchFeedProjects(); 
+      } else {
+        // Jika pakai Alert Bawaan Browser
+        alert("Profil dan NIM berhasil diperbarui!");
+        window.location.reload(); // Reload jalan SETELAH user klik OK di alert
       }
-    } catch (error) {
-      console.error(error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Gagal Update',
-        text: error.response?.data?.message || 'Ada masalah pas kirim data ke server.'
-      });
+
+    } else {
+      alert(resData.message || "Gagal memperbarui profil.");
     }
-  };
+
+  } catch (error) {
+    console.error("Error submit profil:", error);
+    alert("Terjadi kesalahan koneksi ke server.");
+  }
+};
 
   const getInitials = (fullName) => {
     if (!fullName) return '?';
@@ -581,7 +590,7 @@ const openCommentModal = async (projectObj) => {
       return;
     }
 
-    // 🔑 AMBIL DAN DECODE TOKEN SECARA MANUAL UNTUK CEK USER YANG LOGIN
+    // 🔑 AMBIL DAN DECODE TOKEN SECARA MANUAL
     let currentUserId = null;
     const activeToken = localStorage.getItem('token');
     if (activeToken) {
@@ -592,7 +601,7 @@ const openCommentModal = async (projectObj) => {
           return '%' + ('0' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
         const decoded = JSON.parse(jsonPayload);
-        currentUserId = decoded.id; // Ambil ID user dari payload token
+        currentUserId = decoded.id;
       } catch (e) {
         console.error("Gagal decode token di modal:", e);
       }
@@ -607,43 +616,112 @@ const openCommentModal = async (projectObj) => {
     }
 
     const resData = await response.json();
-    console.log("Respon data dari backend:", resData);
-
     const commentList = resData.data || [];
 
+    // 🔄 STATE GLOBAL SEMENTARA
+    window.currentParentId = null;
+
     // 2. Susun HTML daftar komentar
-    let commentsHTML = `<div style="text-align: left; max-height: 240px; overflow-y: auto; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">`;
+    let commentsHTML = `<div style="text-align: left; max-height: 300px; overflow-y: auto; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">`;
     
     if (commentList.length === 0) {
       commentsHTML += `<p style="color: #94a3b8; text-align: center; padding: 16px 0; font-size: 12px; font-weight: 400; margin: 0;">Belum ada komentar nih bro. Jadi yang pertama komen yuk!</p>`;
     } else {
-      commentList.forEach(c => {
+      // 🧠 STRATEGI: Pisah antara Komentar Utama dan Balasan
+      const mainComments = commentList.filter(c => c.parent_id === null);
+      const replies = commentList.filter(c => c.parent_id !== null);
+
+      mainComments.forEach(c => {
         const avatarUrl = c.user_avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
         const teksKomen = c.comment || ''; 
-        
-        // 🔥 AKURAT: Cek kepemilikan komentar berdasarkan ID dari token
         const isMyComment = currentUserId && Number(c.user_id) === Number(currentUserId);
 
+        // Cari tahu ada berapa balasan khusus untuk komentar utama ini
+        const itemReplies = replies.filter(r => Number(r.parent_id) === Number(c.id));
+        const hasReplies = itemReplies.length > 0;
+
         commentsHTML += `
-          <div id="comment-box-${c.id}" style="display: flex; gap: 8px; align-items: flex-start; margin-bottom: 12px; position: relative;">
-            <img src="${avatarUrl}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid #e2e8f0; margin-top: 2px;" />
-            <div style="background-color: #f8fafc; border-radius: 12px; padding: 10px; flex: 1; display: flex; justify-content: space-between; align-items: flex-start;">
-              <div style="flex: 1; text-align: left;">
-                <p style="font-weight: 800; color: #1e293b; font-size: 12px; margin: 0; margin-bottom: 2px;">${c.user_name || 'Anonymous'}</p>
-                <p style="color: #475569; font-size: 12px; font-weight: 400; margin: 0; line-height: 1.5;">${teksKomen}</p>
+          <div id="comment-box-${c.id}" style="margin-bottom: 14px;">
+            <div style="display: flex; gap: 8px; align-items: flex-start;">
+              <img src="${avatarUrl}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid #e2e8f0; margin-top: 2px;" />
+              <div style="background-color: #f8fafc; border-radius: 12px; padding: 10px; flex: 1; display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="flex: 1; text-align: left;">
+                  <p style="font-weight: 800; color: #1e293b; font-size: 12px; margin: 0; margin-bottom: 2px;">${c.user_name || 'Anonymous'}</p>
+                  <p style="color: #475569; font-size: 12px; font-weight: 400; margin: 0; line-height: 1.5;">${teksKomen}</p>
+                  
+                  <div style="margin-top: 6px; display: flex; gap: 12px; align-items: center;">
+                   
+
+<span 
+  onclick="window.setReplyToGlobal(${c.id}, '${c.user_name || 'Anonymous'}')" 
+  style="color: #2563eb; font-size: 11px; font-weight: bold; cursor: pointer;"
+>
+  💬 Balas
+</span>
+
+                    ${hasReplies ? `
+                      <span 
+                        id="toggle-btn-${c.id}"
+                        onclick="window.toggleRepliesGlobal(${c.id})" 
+                        style="color: #64748b; font-size: 11px; font-weight: 600; cursor: pointer; background-color: #f1f5f9; padding: 2px 6px; border-radius: 6px;"
+                      >
+                        👁️ Lihat ${itemReplies.length} Balasan
+                      </span>
+                    ` : ''}
+                  </div>
+                </div>
+                
+                ${isMyComment ? `
+                  <button 
+                    onclick="window.deleteCommentGlobal(${c.id}, ${projectObj.id})" 
+                    style="background: transparent; border: none; color: #ef4444; font-size: 11px; cursor: pointer; padding: 2px 4px; margin-left: 6px; font-weight: bold;"
+                    title="Hapus Komentar"
+                  >
+                    🗑️
+                  </button>
+                ` : ''}
               </div>
-              
-              ${isMyComment ? `
-                <button 
-                  onclick="window.deleteCommentGlobal(${c.id}, ${projectObj.id})" 
-                  style="background: transparent; border: none; color: #ef4444; font-size: 11px; cursor: pointer; padding: 2px 4px; margin-left: 6px; font-weight: bold; border-radius: 4px;"
-                  onmouseover="this.style.backgroundColor='#fee2e2'" 
-                  onmouseout="this.style.backgroundColor='transparent'"
-                  title="Hapus Komentar"
-                >
-                  🗑️
-                </button>
-              ` : ''}
+            </div>
+
+            <div id="replies-container-${c.id}" style="display: none; margin-left: 36px; margin-top: 8px; border-left: 2px solid #e2e8f0; padding-left: 8px;">
+        `;
+
+        // Masukin list balasannya ke dalam container tersembunyi tadi
+       // 🔄 KODE LAMA LU YANG DI DALAM LOOP UTAMA (YANG BAGIAN REPLIES):
+        itemReplies.forEach(r => {
+          const rAvatarUrl = r.user_avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+          const isMyReply = currentUserId && Number(r.user_id) === Number(currentUserId);
+
+          commentsHTML += `
+            <div id="comment-box-${r.id}" style="display: flex; gap: 6px; align-items: flex-start; margin-bottom: 8px;">
+              <img src="${rAvatarUrl}" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; border: 1px solid #e2e8f0; margin-top: 2px;" />
+              <div style="background-color: #f1f5f9; border-radius: 12px; padding: 8px 10px; flex: 1; display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="flex: 1; text-align: left;">
+                  <p style="font-weight: 800; color: #334155; font-size: 11px; margin: 0; margin-bottom: 2px;">${r.user_name || 'Anonymous'}</p>
+                  <p style="color: #475569; font-size: 11px; font-weight: 400; margin: 0; line-height: 1.4;">${r.comment}</p>
+                  
+                  <span 
+                    onclick="window.setReplyToGlobal(${c.id}, '${r.user_name || 'Anonymous'}')" 
+                    style="color: #2563eb; font-size: 10px; font-weight: bold; cursor: pointer; display: inline-block; margin-top: 4px;"
+                  >
+                    💬 Balas
+                  </span>
+                </div>
+                
+                ${isMyReply ? `
+                  <button 
+                    onclick="window.deleteCommentGlobal(${r.id}, ${projectObj.id})" 
+                    style="background: transparent; border: none; color: #ef4444; font-size: 10px; cursor: pointer; padding: 0 2px;"
+                  >
+                    🗑️
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        });
+
+        commentsHTML += `
             </div>
           </div>
         `;
@@ -651,14 +729,53 @@ const openCommentModal = async (projectObj) => {
     }
     commentsHTML += `</div>`;
 
-    // 🛑 DAFTARKAN FUNGSI HAPUS GLOBAL DI WINDOW OBJECT
+    // 🛑 FUNGSI GLOBAL 1: TOGGLE SHOW/HIDE BALASAN (FUNGSI SAKTI YANG LU MINTA)
+    window.toggleRepliesGlobal = (mainCommentId) => {
+      const container = document.getElementById(`replies-container-${mainCommentId}`);
+      const btn = document.getElementById(`toggle-btn-${mainCommentId}`);
+      
+      if (container && btn) {
+        if (container.style.display === 'none') {
+          container.style.display = 'block'; // Tampilkan balsean
+          // Hitung jumlah balasan buat ditaruh di teks
+          const count = container.children.length;
+          btn.innerHTML = `🙈 Sembunyikan Balasan`;
+        } else {
+          container.style.display = 'none'; // Sembunyikan kembali
+          const count = container.children.length;
+          btn.innerHTML = `👁️ Lihat ${count} Balasan`;
+        }
+      }
+    };
+
+    // 🛑 FUNGSI GLOBAL 2: ATUR REPLY
+    window.setReplyToGlobal = (parentId, username) => {
+      window.currentParentId = parentId;
+      const indicatorEl = document.getElementById('reply-indicator');
+      if (indicatorEl) {
+        indicatorEl.innerHTML = `Membalas <b>@${username}</b>... <span onclick="window.cancelReplyGlobal()" style="color: #ef4444; cursor: pointer; margin-left: 6px; font-weight: bold;">[Batal]</span>`;
+        indicatorEl.style.display = 'block';
+      }
+    };
+
+    // 🛑 FUNGSI GLOBAL 3: BATALKAN BALASAN
+    window.cancelReplyGlobal = () => {
+      window.currentParentId = null;
+      const indicatorEl = document.getElementById('reply-indicator');
+      if (indicatorEl) {
+        indicatorEl.style.display = 'none';
+        indicatorEl.innerHTML = '';
+      }
+    };
+
+    // 🛑 FUNGSI GLOBAL 4: HAPUS KOMENTAR
     window.deleteCommentGlobal = async (commentId, projectId) => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
       const confirmDelete = await Swal.fire({
-        title: 'Hapus komentar?',
-        text: 'Komentar ini bakal ilang permanen!',
+        title: 'Hapus komentar lu?',
+        text: 'Komentar ini bakal ilang permanen bro!',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonText: 'Ya, Hapus!',
@@ -673,17 +790,13 @@ const openCommentModal = async (projectObj) => {
       try {
         const response = await fetch(`http://localhost:3000/comments/${commentId}`, {
           method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { 'Authorization': `Bearer ${token}` }
         });
 
         if (response.ok) {
-          // 🪄 Trick DOM: Langsung hapus elemen dari modal layar
           const commentEl = document.getElementById(`comment-box-${commentId}`);
           if (commentEl) commentEl.remove();
 
-          // 📉 Kurangi counter komentar di halaman utama secara realtime
           if (typeof setProjects === "function") {
             setProjects((prevProjects) =>
               prevProjects.map((p) =>
@@ -691,7 +804,6 @@ const openCommentModal = async (projectObj) => {
               )
             );
           }
-
           Swal.fire({ icon: 'success', title: 'Terhapus!', text: 'Komentar berhasil dihapus.', timer: 1200, showConfirmButton: false });
         } else {
           Swal.fire({ icon: 'error', title: 'Gagal', text: 'Gak bisa hapus komentar ini bro.' });
@@ -706,7 +818,8 @@ const openCommentModal = async (projectObj) => {
       title: `<span style="font-size: 14px; font-weight: 800; color: #334155;">Komentar: ${projectObj.title || 'Project'}</span>`,
       html: `
         ${commentsHTML}
-        <textarea id="swal-comment-input" placeholder="Tulis komentar lu di sini bro..." style="box-sizing: border-box; width: 100%; min-height: 70px; padding: 10px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 12px; resize: none; outline: none;"></textarea>
+        <div id="reply-indicator" style="display: none; text-align: left; font-size: 11px; color: #64748b; margin-bottom: 6px; padding: 4px 8px; background-color: #f1f5f9; border-radius: 6px;"></div>
+        <textarea id="swal-comment-input" placeholder="Tulis komentar atau balasan lu di sini bro..." style="box-sizing: border-box; width: 100%; min-height: 70px; padding: 10px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 12px; resize: none; outline: none;"></textarea>
       `,
       showCancelButton: true,
       confirmButtonText: 'Kirim',
@@ -720,10 +833,12 @@ const openCommentModal = async (projectObj) => {
           Swal.showValidationMessage('Komentar gak boleh kosong bro! 😄');
           return false;
         }
-        return commentValue;
+        return {
+          comment: commentValue,
+          parent_id: window.currentParentId
+        };
       }
     }).then(async (result) => {
-      // 4. Proses kirim komentar baru
       if (result.isConfirmed) {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -737,7 +852,10 @@ const openCommentModal = async (projectObj) => {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ comment: result.value })
+          body: JSON.stringify({
+            comment: result.value.comment,
+            parent_id: result.value.parent_id
+          })
         });
 
         if (sendResponse.ok) {
@@ -761,7 +879,6 @@ const openCommentModal = async (projectObj) => {
     console.error("ERROR DI MODAL KOMEN:", error);
   }
 };
-
 const handleToggleBookmark = async (projectId) => {
   try {
     const token = localStorage.getItem('token');
@@ -802,6 +919,29 @@ const handleToggleBookmark = async (projectId) => {
     console.error("Error pas toggle bookmark:", error);
   }
 };
+
+// ========================================================
+// 🟢 FIX UTAMA: Pindahin data login ke form modal pas dibuka
+// ========================================================
+useEffect(() => {
+  if (isProfileModalOpen) {
+    // Ambil data user yang sedang login dari localStorage
+    const localData = localStorage.getItem('user');
+    
+    if (localData) {
+      const targetUser = JSON.parse(localData);
+      
+      console.log("Modal dibuka! Mengisi data awal:", targetUser); // Cek di console log lu bro
+      
+      // Masukkan data user login ke dalam form modal
+      setFormProfile({
+        name: targetUser.name || '',
+        nim: targetUser.nim || '', // 🎯 KUNCI UTAMA: NIM lu bakal langsung nangkring di kotak input
+        bio: targetUser.bio || ''
+      });
+    }
+  }
+}, [isProfileModalOpen]); // 👈 Efek ini bakal jalan SETIAP KALI modal dibuka
   
   return (
     <div className="home-container">
@@ -854,7 +994,7 @@ const handleToggleBookmark = async (projectId) => {
             </div>
           </div>
 
-           {/* ================= MODAL UPDATE PROFIL BARU ================= */}
+{/* ================= MODAL UPDATE PROFIL BARU (FIXED ANTI-STUCK) ================= */}
 {isProfileModalOpen && (
   <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all animate-fade-in">
     <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col animate-slide-up border border-slate-100">
@@ -864,51 +1004,69 @@ const handleToggleBookmark = async (projectId) => {
           <span className="text-lg">📝</span>
           <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider m-0">Edit Profil</h3>
         </div>
-        <button onClick={() => setIsProfileModalOpen(false)} className="text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer text-lg font-bold">
+        <button 
+          type="button" 
+          onClick={() => setIsProfileModalOpen(false)} 
+          className="text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer text-lg font-bold"
+        >
           &times;
         </button>
       </div>
 
-      <form onSubmit={handleUpdateProfile} className="p-6 flex flex-col gap-4 text-left">
+      <form 
+        onSubmit={(e) => {
+          console.log("Form disubmit! Data yang dikirim:", formProfile); // 🔍 Untuk debug di console log inspect element
+          handleUpdateProfile(e);
+        }} 
+        className="p-6 flex flex-col gap-4 text-left"
+      >
+        {/* NAMA LENGKAP */}
         <div className="flex flex-col gap-1.5">
           <label className="text-[11px] font-black text-slate-700 uppercase tracking-wide">Nama Lengkap *</label>
           <input 
             type="text" 
-            value={formProfile.name}
+            value={formProfile?.name || ''} // 🟢 Ditambah tanda tanya (?) biar gak crash kalau objek formProfile null
             onChange={(e) => setFormProfile({...formProfile, name: e.target.value})}
             className="border border-slate-200 rounded-xl p-2.5 text-xs focus:outline-none focus:border-[#0a66c2] font-medium"
-            required
+            required // Wajib diisi
           />
         </div>
 
+        {/* NOMOR INDUK MAHASISWA (NIM) */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-black text-slate-700 uppercase tracking-wide">Asal Kampus / Universitas (NIM)</label>
+          <label className="text-[11px] font-black text-slate-700 uppercase tracking-wide">Nomor Induk Mahasiswa (NIM)</label>
           <input 
             type="text" 
-            value={formProfile.university}
-            onChange={(e) => setFormProfile({...formProfile, university: e.target.value})}
-            placeholder="Contoh: Universitas Pamulang"
+            value={formProfile?.nim || ''} 
+            onChange={(e) => setFormProfile({...formProfile, nim: e.target.value})} 
+            placeholder="Contoh: 201011400123" 
             className="border border-slate-200 rounded-xl p-2.5 text-xs focus:outline-none focus:border-[#0a66c2] font-medium"
           />
         </div>
 
+        {/* BIO / HEADLINE PROFIL */}
         <div className="flex flex-col gap-1.5">
           <label className="text-[11px] font-black text-slate-700 uppercase tracking-wide">Bio / Headline Profil</label>
           <textarea 
-            value={formProfile.bio}
+            value={formProfile?.bio || ''}
             onChange={(e) => setFormProfile({...formProfile, bio: e.target.value})}
-            placeholder="Contoh: Web Developer Enthusiast | S1 Teknik Informatika" 
+            placeholder="Contoh: Web Developer Enthusiast | UI/UX Designer" 
             className="border border-slate-200 rounded-xl p-2.5 text-xs focus:outline-none focus:border-[#0a66c2] font-medium h-16 resize-none"
           />
         </div>
 
+        {/* FOTO PROFIL (AVATAR) */}
         <div className="flex flex-col gap-1.5">
           <label className="text-[11px] font-black text-slate-700 uppercase tracking-wide">Foto Profil (Avatar)</label>
           <div className="border-2 border-dashed border-slate-200 rounded-xl p-3 text-center hover:bg-slate-50 transition-colors relative cursor-pointer">
             <input 
               type="file" 
               accept="image/*"
-              onChange={(e) => setSelectedAvatar(e.target.files[0])}
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  setSelectedAvatar(e.target.files[0]);
+                }
+              }}
               className="absolute inset-0 opacity-0 cursor-pointer"
             />
             <p className="text-[11px] font-bold text-slate-500 m-0">
@@ -917,11 +1075,19 @@ const handleToggleBookmark = async (projectId) => {
           </div>
         </div>
 
+        {/* BUTTON ACTIONS */}
         <div className="border-t border-slate-100 pt-4 mt-2 flex justify-end gap-2.5">
-          <button type="button" onClick={() => setIsProfileModalOpen(false)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-black rounded-xl border-0 cursor-pointer transition-all">
+          <button 
+            type="button" 
+            onClick={() => setIsProfileModalOpen(false)} 
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-black rounded-xl border-0 cursor-pointer transition-all"
+          >
             Batal
           </button>
-          <button type="submit" className="px-5 py-2 bg-[#0a66c2] hover:bg-[#004182] text-white text-xs font-black rounded-xl border-0 cursor-pointer shadow-md transition-all">
+          <button 
+            type="submit" 
+            className="px-5 py-2 bg-[#0a66c2] hover:bg-[#004182] text-white text-xs font-black rounded-xl border-0 cursor-pointer shadow-md transition-all"
+          >
             Simpan Perubahan
           </button>
         </div>

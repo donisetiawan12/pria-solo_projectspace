@@ -10,23 +10,63 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [followerCount, setFollowerCount] = useState(0);
 
-  // STATE UNTUK MODAL UPDATE PROFIL
+  // STATE UNTUK MODAL UPDATE PROFIL (KAMPUS DIAPUS, BIO & ABOUT DISESUAIKAN)
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [formProfile, setFormProfile] = useState({
     name: '',
-    university: '',
-    bio: '',
-    about: '',
-    nim: '',      
+    bio: '',         // Buat role (Development, UI/UX, dll)
+    about: '',       // Menampung isi "Tentang Saya" dari database
+    nim: '',         // Menampung NIM
     email: ''     
   });
   const [selectedAvatar, setSelectedAvatar] = useState(null);
-  const [selectedBanner, setSelectedBanner] = useState(null); // STATE BARU BANNER
+  const [selectedBanner, setSelectedBanner] = useState(null);
 
-  // AMBIL INFORMASI LOGGED-IN USER SECARA GLOBAL AGAR BISA DIAKSES SEMUA FUNGSI
+  // AMBIL INFORMASI LOGGED-IN USER SEMENTARA DARI LOCALSTORAGE
   const savedUser = localStorage.getItem('user');
   const parsedUser = savedUser ? JSON.parse(savedUser) : null;
 
+  // 1. 🔥 FUNGSI AMBIL DATA PROFIL (SINKRONISASI AKURAT DENGAN STRUKTUR DB LU)
+  const fetchUserProfile = async () => {
+    if (!parsedUser || !parsedUser.id) return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await API.get(`/users/${parsedUser.id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const dbUser = response.data.user || response.data.data || response.data || null;
+
+      if (dbUser) {
+        setUser(dbUser);
+        
+        // ✨ PEMETAAN AKURAT: Menghubungkan kolom DB ke field form yang pas
+        setFormProfile({
+          name: dbUser.name || '',
+          bio: dbUser.bio || '',           // Mengambil string keahlian dari kolom bio
+          about: dbUser.about || '',       // Mengambil teks panjang "Tentang Saya" dari kolom about
+          nim: dbUser.nim || '',           // Mengambil NIM dari kolom nim
+          email: dbUser.email || ''
+        });
+
+        // Perbarui localstorage agar sinkron dengan database
+        const freshData = { ...parsedUser, ...dbUser };
+        localStorage.setItem('user', JSON.stringify(freshData));
+      }
+    } catch (error) {
+      console.error("Gagal sinkronisasi data profil dari DB:", error);
+      setUser(parsedUser);
+      setFormProfile({
+        name: parsedUser.name || '',
+        bio: parsedUser.bio || '',
+        about: parsedUser.about || '',
+        nim: parsedUser.nim || '',
+        email: parsedUser.email || ''
+      });
+    }
+  };
+
+  // 2. FUNGSI AMBIL PROJECT SENDIRI
   const fetchMyProjects = async () => {
     if (!parsedUser) return;
     try {
@@ -50,7 +90,6 @@ export default function Profile() {
           return isNameMatch || isNimMatch;
         });
 
-        console.log("🔥 AKHIRNYA TEMBUS BRO! HASIL FILTER:", filtered);
         setMyProjects(filtered);
       }
     } catch (error) {
@@ -60,6 +99,7 @@ export default function Profile() {
     }
   };
 
+  // 3. FUNGSI AMBIL JUMLAH FOLLOWERS
   const fetchFollowersCount = async () => {
     if (!parsedUser || !parsedUser.id) return;
     try {
@@ -88,79 +128,72 @@ export default function Profile() {
       return;
     }
 
-    setUser(parsedUser);
-
-    setFormProfile({
-      name: parsedUser.name || '',
-      university: parsedUser.university || '',
-      bio: parsedUser.bio || '',
-      about: parsedUser.about || '',
-      nim: parsedUser.nim || '0110224010', 
-      email: parsedUser.email || 'doni@kampus.ac.id'
-    });
-
+    fetchUserProfile();
     fetchMyProjects();
     fetchFollowersCount();
   }, [navigate]);
 
-  const handleUpdateProfile = async (e) => {
-    e.preventDefault();
-    if (!parsedUser || !parsedUser.id) return;
+  // FUNGSI UPDATE DATA PROFIL KE SERVER
+// 🟢 KODE PERBAIKAN DI PROFILE.JSX
+const handleUpdateProfile = async (e) => {
+  e.preventDefault();
+  if (!parsedUser || !parsedUser.id) return;
 
-    try {
-      Swal.showLoading();
-      const formData = new FormData();
+  try {
+    Swal.showLoading();
+    const formData = new FormData();
+    
+    formData.append('id', parsedUser.id); 
+    formData.append('name', formProfile.name);
+    formData.append('bio', formProfile.bio);     // Masuk ke kolom bio
+    formData.append('about', formProfile.about); // Masuk ke kolom about (Tentang Saya)
+    
+    // 🎯 FIX UTAMA: Pastikan yang di-append adalah 'nim' (bukan university)
+    formData.append('nim', formProfile.nim); 
+    
+    if (selectedAvatar) formData.append('avatar', selectedAvatar);
+    if (selectedBanner) formData.append('banner', selectedBanner);
+
+    const response = await API.put('/users/profile', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+
+    if (response.data && response.data.user) {
+      // 🎯 FIX KEDUA: Bersihkan sisa-sisa key 'university' dari localStorage biar gak bikin bug lagi
+      const updatedUserData = { ...parsedUser, ...response.data.user };
+      delete updatedUserData.university; // Hapus paksa key lama jika masih nyangkut
       
-      formData.append('id', parsedUser.id); 
-      formData.append('name', formProfile.name);
-      formData.append('university', formProfile.university);
-      formData.append('bio', formProfile.bio);
-      formData.append('about', formProfile.about);
-      
-      if (selectedAvatar) {
-        formData.append('avatar', selectedAvatar);
-      }
-      if (selectedBanner) {
-        formData.append('banner', selectedBanner); // KIRIM BANNER BARU KE BACKEND
-      }
+      localStorage.setItem('user', JSON.stringify(updatedUserData));
+      setUser(updatedUserData);
 
-      const response = await API.put('/users/profile', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-
-      if (response.data && response.data.user) {
-        const updatedUserData = { ...parsedUser, ...response.data.user };
-        localStorage.setItem('user', JSON.stringify(updatedUserData));
-        setUser(updatedUserData);
-
-        // 🔥 FIX: Memicu pemicu sinyal global ke Sidebar agar ikut terupdate instan
-        window.dispatchEvent(new Event("profileUpdated"));
-      }
-
-      setIsProfileModalOpen(false);
-      setSelectedBanner(null);
-      setSelectedAvatar(null);
-      
-      Swal.fire({
-        icon: 'success',
-        title: 'Berhasil!',
-        text: 'Profil lu sukses diperbarui bro!',
-        timer: 1500,
-        showConfirmButton: false
-      }).then(() => {
-        window.location.reload();
-      });
-
-    } catch (error) {
-      console.error("Gagal update profil:", error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Gagal Update',
-        text: error.response?.data?.message || 'Terjadi kesalahan sistem server.'
-      });
+      window.dispatchEvent(new Event("profileUpdated"));
     }
-  };
 
+    setIsProfileModalOpen(false);
+    setSelectedBanner(null);
+    setSelectedAvatar(null);
+    
+    Swal.fire({
+      icon: 'success',
+      title: 'Berhasil!',
+      text: 'Profil lu sukses diperbarui bro!',
+      timer: 1500,
+      showConfirmButton: false
+    }).then(() => {
+      window.location.reload();
+    });
+
+  } catch (error) {
+    console.error("Gagal update profil:", error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Gagal Update',
+      text: error.response?.data?.message || 'Terjadi kesalahan sistem server.'
+    });
+  }
+};
+
+  // FUNGSI HAPUS REPO / PROYEK
   const handleDeleteProject = (projectId) => {
     Swal.fire({
       title: 'Yakin mau hapus?',
@@ -219,7 +252,7 @@ export default function Profile() {
         {/* ================= CARD 1: HERO PROFILE BANNER ================= */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative">
           
-          {/* SINKRONISASI BACKGROUND BANNER DINAMIS */}
+          {/* BACKGROUND BANNER DINAMIS */}
           {user.banner ? (
             <div className="h-44 w-full">
               <img 
@@ -249,12 +282,15 @@ export default function Profile() {
               <div className="mt-16 md:mt-20 text-left">
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-black text-slate-900 m-0">{user.name}</h1>
-                  <span className="bg-[#e0e7ff] text-[#4f46e5] text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
-                    NIM {formProfile.nim}
-                  </span>
+                  {formProfile.nim && (
+                    <span className="bg-[#e0e7ff] text-[#4f46e5] text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
+                      NIM {formProfile.nim}
+                    </span>
+                  )}
                 </div>
+                {/* 🎯 MENAMPILKAN BIO (ROLE / KEAHLIAN) */}
                 <p className="text-xs text-slate-700 font-bold mt-1 max-w-xl leading-relaxed">
-                  {user.bio || 'Informatika Semester 4 | Full Stack Developer | Mencari Project Kolaborasi 🚀'}
+                  {user.bio || 'Belum mengisi keahlian (Contoh: Development, UI/UX) 🚀'}
                 </p>
                 <p className="text-[11px] text-slate-400 font-medium mt-1 m-0">
                   {formProfile.email}
@@ -283,9 +319,10 @@ export default function Profile() {
             </div>
           </div>
 
+          {/* 🎯 MENAMPILKAN TENTANG SAYA (DIAMBIL DARI KOLOM ABOUT DI DB) */}
           <div className="px-8 pb-6 mt-4">
             <p className="text-xs text-slate-600 leading-relaxed font-medium m-0 bg-[#f8fafc] p-4 rounded-xl border border-slate-100 whitespace-pre-line">
-              {user.about || 'Mahasiswa IT yang gemar ngoding malam-malam. Fokus pada ekosistem Node.js, Express, React, dan perancangan database MySQL.'}
+              {user.about || 'Belum mengisi deskripsi tentang saya. Silakan klik Ubah Profil.'}
             </p>
           </div>
         </div>
@@ -365,15 +402,10 @@ export default function Profile() {
               <button onClick={() => setIsProfileModalOpen(false)} className="text-slate-400 hover:text-slate-600 border-0 bg-transparent text-lg font-bold cursor-pointer">&times;</button>
             </div>
 
-            <form onSubmit={handleUpdateProfile} className="p-5 flex flex-col gap-4 text-xs font-semibold text-slate-700">
+            <form onSubmit={handleUpdateProfile} className="p-5 flex flex-col gap-4 text-xs font-semibold text-slate-700 max-h-[75vh] overflow-y-auto">
               <div className="flex flex-col gap-1.5">
                 <label>Nama Lengkap <span className="text-red-500">*</span></label>
                 <input type="text" value={formProfile.name} onChange={(e) => setFormProfile(prev => ({ ...prev, name: e.target.value }))} className="w-full border border-slate-200 rounded-lg p-2.5 font-medium focus:outline-none focus:border-blue-500" required />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label>Asal Universitas / Kampus</label>
-                <input type="text" value={formProfile.university} onChange={(e) => setFormProfile(prev => ({ ...prev, university: e.target.value }))} className="w-full border border-slate-200 rounded-lg p-2.5 font-medium focus:outline-none focus:border-blue-500" />
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -382,13 +414,14 @@ export default function Profile() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label>Bio Ringkas / Headline</label>
-                <input type="text" value={formProfile.bio} onChange={(e) => setFormProfile(prev => ({ ...prev, bio: e.target.value }))} className="w-full border border-slate-200 rounded-lg p-2.5 font-medium focus:outline-none focus:border-blue-500" />
+                <label>Keahlian / Fokus Bidang (Bio)</label>
+                <input type="text" value={formProfile.bio} onChange={(e) => setFormProfile(prev => ({ ...prev, bio: e.target.value }))} className="w-full border border-slate-200 rounded-lg p-2.5 font-medium focus:outline-none focus:border-blue-500" placeholder="Contoh: Development, UI/UX" />
               </div>
 
+              {/* 🎯 INPUT EDIT UTK TENTANG SAYA (MENGISI KOLOM ABOUT DB) */}
               <div className="flex flex-col gap-1.5">
                 <label>Tentang Saya</label>
-                <textarea rows="3" value={formProfile.about} onChange={(e) => setFormProfile(prev => ({ ...prev, about: e.target.value }))} className="w-full border border-slate-200 rounded-lg p-2.5 font-medium focus:outline-none focus:border-blue-500 resize-none" />
+                <textarea rows="4" value={formProfile.about} onChange={(e) => setFormProfile(prev => ({ ...prev, about: e.target.value }))} className="w-full border border-slate-200 rounded-lg p-2.5 font-medium focus:outline-none focus:border-blue-500 resize-none" placeholder="Ceritakan latar belakang coding atau detail profil lu di sini bro..." />
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -396,7 +429,6 @@ export default function Profile() {
                 <input type="file" accept="image/*" onChange={(e) => setSelectedAvatar(e.target.files[0])} className="w-full border border-slate-200 rounded-lg p-2.5 font-medium focus:outline-none" />
               </div>
 
-              {/* INPUT BARU: GANTI BACKGROUND BANNER */}
               <div className="flex flex-col gap-1.5">
                 <label>Ganti Background Profil (Banner)</label>
                 <input type="file" accept="image/*" onChange={(e) => setSelectedBanner(e.target.files[0])} className="w-full border border-slate-200 rounded-lg p-2.5 font-medium focus:outline-none" />
