@@ -35,7 +35,7 @@ exports.getProjectById = async (id) => {
   return rows[0];
 };
 
-// 🔥 CREATE PROJECT (Sekarang Menyimpan Tech Stack)
+// 🔥 CREATE PROJECT (SUDAH DI-RESTORE: Menambah kolom tech_stack)
 exports.createProject = async (data) => {
   const {
     user_id,
@@ -46,13 +46,14 @@ exports.createProject = async (data) => {
     demo_link,
     tags,
     is_free,
-    tech_stack // 🔥 TANGKAP DATA TECH STACK
+    tech_stack // 🟢 KITA BALIKIN KE SINI BRO
   } = data;
 
+  // 🟢 Tambah tech_stack di query dan slot tanda tanya (?) jadi 9
   const [result] = await db.execute(
     `INSERT INTO projects 
     (user_id, title, description, image, github_link, demo_link, tags, is_free, tech_stack)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, // 🔥 Tambah slot (?) baru untuk tech_stack
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
     [
       user_id,
       title,
@@ -62,14 +63,14 @@ exports.createProject = async (data) => {
       demo_link || null,
       tags || null,
       is_free ?? 1,
-      tech_stack || null // 🔥 MASUKIN KE PARAMETER QUERY
+      tech_stack || null // 🟢 Masukkan nilainya ke array query
     ]
   );
 
   return result;
 };
 
-// 🔥 UPDATE PROJECT (Sekarang Bisa Edit Tech Stack)
+// 🔥 UPDATE PROJECT (SUDAH DI-RESTORE: Mengupdate kolom tech_stack)
 exports.updateProject = async (
   id,
   title,
@@ -79,12 +80,12 @@ exports.updateProject = async (
   demo_link,
   tags,
   is_free,
-  tech_stack // 🔥 TANGKAP TECH STACK DI PARAMETER FITUR EDIT
+  tech_stack // 🟢 KITA TAMBAHKAN PARAMETERNYA DI SINI
 ) => {
   return db.execute(
     `UPDATE projects 
      SET title=?, description=?, image=COALESCE(?, image), github_link=?, demo_link=?, tags=?, is_free=?, tech_stack=? 
-     WHERE id=?`, // 🔥 Tambah update field tech_stack=? sebelum WHERE id=?
+     WHERE id=?`, // 🟢 Selipkan tech_stack=? sebelum WHERE id=?
     [
       title, 
       description, 
@@ -93,8 +94,8 @@ exports.updateProject = async (
       demo_link, 
       tags, 
       is_free, 
-      tech_stack || null, // 🔥 MASUKIN SEBAGAI PARAMETER SEBELUM ID
-      id
+      tech_stack, // 🟢 Taruh tech_stack di sini sebelum id
+      id 
     ]
   );
 };
