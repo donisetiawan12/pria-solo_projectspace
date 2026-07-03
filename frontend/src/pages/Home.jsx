@@ -511,7 +511,176 @@ const handleDeleteProject = async (id) => {
     fetchUserPalingAktif();
   }, [isLoggedIn]); 
 
+const handleToggleLike = async (projectId) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      Swal.fire({ title: 'Mau kasih Like?', text: 'Login dulu yuk bro!', icon: 'info' });
+      return;
+    }
 
+    const response = await fetch(`http://localhost:3000/likes/${projectId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      // 🔥 TRICK SAKTI: Update langsung data di state tanpa reload halaman!
+      setProjects((prevProjects) =>
+        prevProjects.map((p) => {
+          if (p.id === projectId) {
+            const currentLiked = p.isLiked;
+            return {
+              ...p,
+              isLiked: !currentLiked,
+              // Kalau tadinya udah dilike berarti sekarang berkurang 1, kalau belum berarti nambah 1
+              likesCount: currentLiked ? (p.likesCount || 1) - 1 : (p.likesCount || 0) + 1
+            };
+          }
+          return p;
+        })
+      );
+    }
+  } catch (error) {
+    console.error("Error pas toggle like:", error);
+  }
+};
+
+
+const openCommentModal = async (projectObj) => {
+  try {
+    // Cek di console apakah data project masuk pas diklik
+    console.log("Project yang diklik:", projectObj);
+
+    if (!projectObj || !projectObj.id) {
+      console.error("ID Project tidak ditemukan!");
+      return;
+    }
+
+    // 1. Ambil data komentar dari backend
+    const response = await fetch(`http://localhost:3000/comments/${projectObj.id}`);
+    const resData = await response.json();
+    
+    console.log("Respon data dari backend:", resData);
+
+    // Ambil array komentarnya (sesuai format controller: resData.data)
+    const commentList = resData.data || [];
+
+    // 2. Susun HTML daftar komentar
+    let commentsHTML = `<div style="text-align: left; max-height: 240px; overflow-y: auto; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">`;
+    
+    if (commentList.length === 0) {
+      commentsHTML += `<p style="color: #94a3b8; text-align: center; padding: 16px 0; font-size: 12px; font-weight: 400; margin: 0;">Belum ada komentar nih bro. Jadi yang pertama komen yuk!</p>`;
+    } else {
+      commentList.forEach(c => {
+        const avatarUrl = c.user_avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+        const teksKomen = c.comment || ''; 
+        
+        commentsHTML += `
+          <div style="display: flex; gap: 8px; align-items: flex-start; margin-bottom: 12px;">
+            <img src="${avatarUrl}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid #e2e8f0; margin-top: 2px;" />
+            <div style="background-color: #f8fafc; border-radius: 12px; padding: 10px; flex: 1;">
+              <p style="font-weight: 800; color: #1e293b; font-size: 12px; margin: 0; margin-bottom: 2px;">${c.user_name || 'Anonymous'}</p>
+              <p style="color: #475569; font-size: 12px; font-weight: 400; margin: 0; line-height: 1.5;">${teksKomen}</p>
+            </div>
+          </div>
+        `;
+      });
+    }
+    commentsHTML += `</div>`;
+
+    // 3. Tampilkan Pop-up SweetAlert2
+    Swal.fire({
+      title: `<span style="font-size: 14px; font-weight: 800; color: #334155;">Komentar: ${projectObj.title || 'Project'}</span>`,
+      html: `
+        ${commentsHTML}
+        <textarea id="swal-comment-input" placeholder="Tulis komentar lu di sini bro..." style="box-sizing: border-box; width: 100%; min-height: 70px; padding: 10px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 12px; resize: none; outline: none;"></textarea>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Kirim',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#2563eb',
+      cancelButtonColor: '#64748b',
+      customClass: { popup: 'rounded-2xl' },
+      preConfirm: () => {
+        const commentValue = document.getElementById('swal-comment-input').value;
+        if (!commentValue || commentValue.trim() === '') {
+          Swal.showValidationMessage('Komentar gak boleh kosong bro! 😄');
+          return false;
+        }
+        return commentValue;
+      }
+    }).then(async (result) => {
+      // 4. Proses kirim komentar baru
+      if (result.isConfirmed) {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          Swal.fire({ icon: 'info', title: 'Login Dulu Bro', text: 'Lu harus login dulu ya sebelum bisa ngirim komen!', confirmButtonColor: '#2563eb' });
+          return;
+        }
+
+        const sendResponse = await fetch(`http://localhost:3000/comments/${projectObj.id}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ comment: result.value })
+        });
+
+        if (sendResponse.ok) {
+          Swal.fire({ icon: 'success', title: 'Komen Terkirim!', showConfirmButton: false, timer: 1200 });
+
+          // 🔥 TRICK SAKTI: Tambah angka komentar langsung di UI tanpa reload!
+          setProjects((prevProjects) =>
+            prevProjects.map((p) =>
+              p.id === projectObj.id ? { ...p, commentsCount: (p.commentsCount || 0) + 1 } : p
+            )
+          );
+
+        } else {
+          const errData = await sendResponse.json();
+          Swal.fire({ icon: 'error', title: 'Gagal Komen', text: errData.message });
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error("ERROR DI MODAL KOMEN:", error);
+  }
+};
+
+const handleToggleBookmark = async (projectId) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      Swal.fire({ title: 'Mau simpan project?', text: 'Login dulu yuk bro!', icon: 'info' });
+      return;
+    }
+
+    const response = await fetch(`http://localhost:3000/bookmarks/${projectId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      // 🔥 TRICK SAKTI: Ganti warna bookmark langsung di layar
+      setProjects((prevProjects) =>
+        prevProjects.map((p) =>
+          p.id === projectId ? { ...p, isBookmarked: !p.isBookmarked } : p
+        )
+      );
+    }
+  } catch (error) {
+    console.error("Error pas toggle bookmark:", error);
+  }
+};
   
   return (
     <div className="home-container">
@@ -780,17 +949,52 @@ const handleDeleteProject = async (id) => {
                 </div>
 
                 {/* 5. INTERACTION BUTTONS */}
-                <div className="border-t border-slate-100 pt-3 flex justify-between items-center text-slate-500 font-bold text-xs mt-1">
-                  <button type="button" className="flex items-center gap-2 hover:bg-slate-50 px-3 py-2 rounded-lg bg-transparent border-0 cursor-pointer text-slate-600 transition-colors">
-                    <span className="text-sm">⭐</span> Give Star
-                  </button>
-                  <button type="button" className="flex items-center gap-2 hover:bg-slate-50 px-3 py-2 rounded-lg bg-transparent border-0 cursor-pointer text-slate-600 transition-colors">
-                    <span className="text-sm">💬</span> Comment
-                  </button>
-                  <button type="button" className="flex items-center gap-2 hover:bg-slate-50 px-3 py-2 rounded-lg bg-transparent border-0 cursor-pointer text-slate-600 transition-colors">
-                    <span className="text-sm">🔖</span> Bookmark
-                  </button>
-                </div>
+               <div className="border-t border-slate-100 pt-3 flex justify-between items-center text-slate-500 font-bold text-xs mt-1">
+  
+  {/* 1. TOMBOL LIKE (Udah disesuaiin pake proj) */}
+  <button 
+    type="button" 
+    onClick={(e) => {
+      e.stopPropagation();
+      handleToggleLike(proj.id); // 👈 Pake proj
+    }}
+    className={`flex items-center gap-2 hover:bg-slate-50 px-3 py-2 rounded-lg bg-transparent border-0 cursor-pointer transition-colors ${
+      proj.isLiked ? 'text-blue-600 font-extrabold' : 'text-slate-600'
+    }`}
+  >
+    <span className="text-sm">{proj.isLiked ? '👍' : '👍🏻'}</span> 
+    <span>{proj.likesCount || 0} Likes</span>
+  </button>
+
+  {/* 2. TOMBOL COMMENT (Udah disesuaiin pake proj) */}
+  <button 
+    type="button" 
+    onClick={(e) => {
+      e.stopPropagation();
+      openCommentModal(proj); // 👈 Pake proj
+    }}
+    className="flex items-center gap-2 hover:bg-slate-50 px-3 py-2 rounded-lg bg-transparent border-0 cursor-pointer text-slate-600 transition-colors"
+  >
+    <span className="text-sm">💬</span> 
+    <span>{proj.commentsCount || 0} Comments</span>
+  </button>
+
+  {/* 3. TOMBOL BOOKMARK (Udah disesuaiin pake proj) */}
+  <button 
+    type="button" 
+    onClick={(e) => {
+      e.stopPropagation();
+      handleToggleBookmark(proj.id); // 👈 Pake proj
+    }}
+    className={`flex items-center gap-2 hover:bg-slate-50 px-3 py-2 rounded-lg bg-transparent border-0 cursor-pointer transition-colors ${
+      proj.isBookmarked ? 'text-blue-600' : 'text-slate-600'
+    }`}
+  >
+    <span className="text-sm">{proj.isBookmarked ? '🔖' : '📑'}</span> 
+    <span>{proj.isBookmarked ? 'Saved' : 'Bookmark'}</span>
+  </button>
+
+</div>
 
               </div>
             ))

@@ -9,10 +9,11 @@ const addComment = (userId, projectId, comment, parentId) => {
 
 const getComments = (projectId) => {
   return db.execute(
-    `SELECT c.*, u.name 
+    `SELECT c.*, u.name as user_name, u.avatar as user_avatar 
      FROM comments c
      JOIN users u ON c.user_id = u.id
-     WHERE project_id = ?`,
+     WHERE c.project_id = ?
+     ORDER BY c.created_at ASC`,
     [projectId]
   );
 };

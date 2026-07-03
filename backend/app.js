@@ -1,5 +1,5 @@
 // =================================================================
-// app.js (VERSI FIX - JALUR STATIC UPLOADS SEJAJAR ROOT)
+// app.js (VERSI FULL FIX - SEMUA ROUTE TERMASUK LIKES & COMMENTS)
 // =================================================================
 
 const express = require('express');
@@ -29,12 +29,21 @@ app.use((req, res, next) => {
 const authRoutes = require('./routes/authRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const userRoutes = require('./routes/userRoutes');
-const followRoutes = require('./routes/followRoutes'); // 🔥 TAMBAHKAN INI
+const followRoutes = require('./routes/followRoutes');
+const likeRoutes = require('./routes/likeRoutes'); 
+const commentRoutes = require('./routes/commentRoutes');// 🔥 SEKARANG KOMENTAR JALURNYA DIIMPORT DI SINI!
+const bookmarkRoutes = require('./routes/bookmarkRoutes');
+
+
 // 6. PENGGUNAAN ROUTES
 app.use('/auth', authRoutes);         
 app.use('/projects', projectRoutes);   
-app.use('/users', userRoutes); // 🔥 TAMBAHKAN INI biar frontend bisa akses /users/profile
-app.use('/follows', followRoutes); // 🔥 TAMBAHKAN INI (Gua set pake jamak '/follows')
+app.use('/users', userRoutes); 
+app.use('/follows', followRoutes); 
+app.use('/likes', likeRoutes); 
+app.use('/comments', commentRoutes); // 🔥 SEKARANG JALUR KOMENTAR RESMI DIBUKA DI SINI!
+app.use('/bookmarks', bookmarkRoutes); // 🔥 SEKARANG JALUR BOOKMARK RESMI DIBUKA DI SINI!
+
 // 7. TEST KONEKSI DATABASE
 // =================================================================
 db.query('SELECT 1 + 1 AS result')

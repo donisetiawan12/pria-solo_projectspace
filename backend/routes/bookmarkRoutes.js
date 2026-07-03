@@ -1,13 +1,12 @@
 const express = require('express');
 const router = express.Router();
-
-const controller = require('../controllers/bookmarkController');
+const bookmarkController = require('../controllers/bookmarkController');
 const authMiddleware = require('../middleware/authMiddleware');
 
-// toggle bookmark
-router.post('/:project_id', authMiddleware, controller.toggleBookmark);
+// Ambil semua daftar bookmark milik user login (Wajib Login)
+router.get('/my-bookmarks', authMiddleware, bookmarkController.getMyBookmarks);
 
-// get semua bookmark user
-router.get('/me', authMiddleware, controller.getMyBookmarks);
+// Simpan atau Hapus bookmark berdasarkan ID project (Wajib Login)
+router.post('/:id', authMiddleware, bookmarkController.toggleBookmark);
 
 module.exports = router;

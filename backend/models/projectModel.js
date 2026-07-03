@@ -1,6 +1,7 @@
 const db = require('../config/db');
 
 exports.getAllProjects = async (currentUserId = null) => {
+  // 🔥 Query sudah dimodifikasi untuk menghitung Likes, Comments, dan Bookmarks secara realtime
   const [rows] = await db.execute(`
     SELECT 
       projects.*, 
@@ -8,12 +9,25 @@ exports.getAllProjects = async (currentUserId = null) => {
       users.university as user_nim,  
       users.bio as user_bio,          
       users.avatar as user_avatar,
-      IF(follows.follower_id IS NOT NULL, 1, 0) as isFollowing
+      IF(follows.follower_id IS NOT NULL, 1, 0) as isFollowing,
+      
+      -- 🟢 1. Hitung total likes untuk project ini
+      (SELECT COUNT(*) FROM likes WHERE likes.project_id = projects.id) as likesCount,
+      
+      -- 🟢 2. Hitung total comments untuk project ini
+      (SELECT COUNT(*) FROM comments WHERE comments.project_id = projects.id) as commentsCount,
+      
+      -- 🟢 3. Cek apakah user yang login saat ini sudah pencet LIKE (1 jika ya, 0 jika tidak)
+      IF((SELECT COUNT(*) FROM likes WHERE likes.project_id = projects.id AND likes.user_id = ?) > 0, 1, 0) as isLiked,
+      
+      -- 🟢 4. Cek apakah user yang login saat ini sudah pencet BOOKMARK (1 jika ya, 0 jika tidak)
+      IF((SELECT COUNT(*) FROM bookmarks WHERE bookmarks.project_id = projects.id AND bookmarks.user_id = ?) > 0, 1, 0) as isBookmarked
+
     FROM projects
     JOIN users ON projects.user_id = users.id
     LEFT JOIN follows ON projects.user_id = follows.following_id AND follows.follower_id = ?
     ORDER BY projects.created_at DESC
-  `, [currentUserId]); 
+  `, [currentUserId, currentUserId, currentUserId]); // 👈 Masukkan currentUserId sebanyak 3 kali sesuai urutan tanda tanya (?)
 
   return rows;
 };
