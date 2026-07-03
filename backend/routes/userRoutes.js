@@ -4,13 +4,17 @@ const multer = require('multer');
 const path = require('path');
 const db = require('../config/db'); // Ini sudah otomatis db.promise() dari config lu
 
-// 1. KONFIGURASI STORAGE AVATAR
+// 🔥 IMPORT CONTROLLER BARU KITA DI SINI
+const userController = require('../controllers/userController'); 
+
+// 1. KONFIGURASI STORAGE UTK AVATAR & BANNER (DINAMIS)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'uploads/'); 
   },
   filename: (req, file, cb) => {
-    cb(null, 'avatar-' + Date.now() + path.extname(file.originalname));
+    const prefix = file.fieldname === 'banner' ? 'banner-' : 'avatar-';
+    cb(null, prefix + Date.now() + path.extname(file.originalname));
   }
 });
 
@@ -18,18 +22,22 @@ const upload = multer({ storage: storage });
 
 // ==========================================
 // [PUT] http://localhost:3000/users/profile
-// ENDPOINT UPDATE PROFILE
+// ENDPOINT UPDATE PROFILE (TETAP UTUH GAK DIGANTI)
 // ==========================================
-router.put('/profile', upload.single('avatar'), async (req, res) => {
+router.put('/profile', upload.fields([
+  { name: 'avatar', maxCount: 1 },
+  { name: 'banner', maxCount: 1 } 
+]), async (req, res) => {
   try {
     const { id, name, university, bio, about } = req.body; 
-    let avatarUrl = req.file ? req.file.filename : null;
 
     if (!id) {
       return res.status(400).json({ message: "ID User wajib dikirim bro!" });
     }
 
-    // Query update data user berdasarkan ID
+    let avatarUrl = req.files && req.files['avatar'] ? req.files['avatar'][0].filename : null;
+    let bannerUrl = req.files && req.files['banner'] ? req.files['banner'][0].filename : null;
+
     let query = "UPDATE users SET name = ?, university = ?, bio = ?, about = ?";
     let params = [name, university, bio, about];
 
@@ -38,14 +46,17 @@ router.put('/profile', upload.single('avatar'), async (req, res) => {
       params.push(avatarUrl);
     }
 
+    if (bannerUrl) {
+      query += ", banner = ?";
+      params.push(bannerUrl);
+    }
+
     query += " WHERE id = ?";
     params.push(id);
 
-    // Eksekusi query tanpa destructuring berlebih karena sudah menggunakan pool promise murni
     await db.query(query, params);
 
-    // Ambil data terbaru untuk dilempar balik ke frontend
-    const [rows] = await db.query("SELECT id, name, university, bio, about, avatar FROM users WHERE id = ?", [id]);
+    const [rows] = await db.query("SELECT id, name, university, bio, about, avatar, banner FROM users WHERE id = ?", [id]);
 
     return res.json({
       message: "Profil berhasil diperbarui!",
@@ -59,41 +70,23 @@ router.put('/profile', upload.single('avatar'), async (req, res) => {
 });
 
 // ==========================================
-// [GET] http://localhost:3000/users/:id/followers-count
-// FIX 404 & COCOK DENGAN POOL PROMISE
+// 🔥 [GET] ENDPOINT REKOMENDASI SIDEBAR KANAN
+// Taruh di atas route "/:id" biar string "recommendations" gak kebaca jadi ID
 // ==========================================
+router.get('/recommendations', userController.getRecommendations);
+
 // ==========================================
-// [GET] http://localhost:3000/users/:id/followers-count
-// 🔥 VERSI BYPASS SAKLEK ANTI-ERROR 500
+// 🔥 [POST] ENDPOINT TOGGLE FOLLOW USER
+// Kalo lu punya file/fungsi middleware JWT buat baca token, 
+// pasang di tengahnya! Contoh: router.post('/follows/:id', verifyToken, userController.toggleFollow);
 // ==========================================
-router.get('/:id/followers-count', async (req, res) => {
-  try {
-    const userId = req.params.id;
+router.post('/follows/:id', userController.toggleFollow);
 
-    // Kita ambil data flat pakai query biasa
-    const result = await db.query("SELECT * FROM followers");
-    
-    // Ambil baris rows-nya murni, handle kalau dia nested array dari pool promise
-    const rows = Array.isArray(result[0]) ? result[0] : result;
-
-    // Kita filter manual pakai JavaScript murni, anti-gagal parser query database!
-    const filteredFollowers = rows.filter(f => {
-      if (!f || !f.following_id) return false;
-      return String(f.following_id) === String(userId);
-    });
-
-    return res.json({
-      success: true,
-      followersCount: filteredFollowers.length // Menghasilkan angka totalnya langsung
-    });
-  } catch (err) {
-    // KALAU INI MASIH ERROR, LIHAT TERMINAL TEMPAT LU JALANIN NODE.JS/BACKEND!
-    console.log("=== ERROR NYATA ADA DI TERMINAL BACKEND LU BRO ===");
-    console.error(err);
-    
-    // Kita kasih fallback 1 biar UI lu gak flat 0 terus selagi error
-    return res.json({ success: true, followersCount: 1 }); 
-  }
-});
+// ==========================================
+// 🔥 [GET] ENDPOINT MUTUAL CONNECTIONS COUNT
+// Bypass lama lu gua ganti pake fungsi dari controller
+// Biar sekarang ngitung jumlah "Saling Follow" beneran
+// ==========================================
+router.get('/:id/followers-count', userController.getConnectionsCount);
 
 module.exports = router;

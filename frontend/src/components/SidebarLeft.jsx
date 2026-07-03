@@ -1,9 +1,49 @@
 import React, { useState, useEffect } from 'react';
 
-export default function SidebarLeft({ user, isLoggedIn, setIsProfileModalOpen, setActiveProjectDetails }) {  const [savedProjects, setSavedProjects] = useState([]);
+export default function SidebarLeft({ user: propsUser, isLoggedIn, setIsProfileModalOpen, setActiveProjectDetails }) {  
+  const [savedProjects, setSavedProjects] = useState([]);
   const [loading, setLoading] = useState(false);
 
- // 1. AMBIL DATA BOOKMARK DARI BACKEND + SUNTIK DATA AUTHOR
+  // 🔥 SAKTI 1: Saat pertama kali muncul, lgsg intip localStorage biar dapet data paling segar (Bukan data jadul dari parent)
+  const [currentUser, setCurrentUser] = useState(() => {
+    const localData = localStorage.getItem('user');
+    return localData ? JSON.parse(localData) : propsUser;
+  });
+
+  // 🔥 SAKTI 2: Setiap kali komponen induk me-render ulang / oper props baru, 
+  // proteksi data sidebar agar TETAP mengutamakan isi localStorage yang sudah lu update di halaman profil!
+  useEffect(() => {
+    const localData = localStorage.getItem('user');
+    if (localData) {
+      setCurrentUser(JSON.parse(localData));
+    } else if (propsUser) {
+      setCurrentUser(propsUser);
+    }
+  }, [propsUser]);
+
+  // 🔥 SAKTI 3: Event listener real-time jika sewaktu-waktu profil diubah tanpa pindah halaman
+  useEffect(() => {
+    const handleProfileRefresh = () => {
+      const localData = localStorage.getItem('user');
+      if (localData) {
+        try {
+          setCurrentUser(JSON.parse(localData));
+        } catch (e) {
+          console.error("Gagal refresh data user di sidebar:", e);
+        }
+      }
+    };
+
+    window.addEventListener("profileUpdated", handleProfileRefresh);
+    window.addEventListener("storage", handleProfileRefresh); 
+    
+    return () => {
+      window.removeEventListener("profileUpdated", handleProfileRefresh);
+      window.removeEventListener("storage", handleProfileRefresh);
+    };
+  }, []);
+
+  // AMBIL DATA BOOKMARK DARI BACKEND
   useEffect(() => {
     if (isLoggedIn) {
       const fetchMyBookmarks = async () => {
@@ -22,22 +62,20 @@ export default function SidebarLeft({ user, isLoggedIn, setIsProfileModalOpen, s
             const resData = await response.json();
             const rawBookmarks = resData.data || [];
 
-            // 🔥 TRICK SAKTI: Format data mentah dari DB biar punya objek 'author'
             const formattedBookmarks = rawBookmarks.map(proj => {
               if (!proj.author) {
                 return {
                   ...proj,
                   author: {
-                    name: user?.name || 'User',
-                    avatar: user?.avatar || null,
-                    nim: user?.university || 'Mahasiswa'
+                    name: currentUser?.name || 'User',
+                    avatar: currentUser?.avatar || null,
+                    nim: currentUser?.university || 'Mahasiswa'
                   }
                 };
               }
               return proj;
             });
 
-            // Set data yang udah matang dan lengkap ke state sidebar
             setSavedProjects(formattedBookmarks);
           }
         } catch (error) {
@@ -51,7 +89,7 @@ export default function SidebarLeft({ user, isLoggedIn, setIsProfileModalOpen, s
     } else {
       setSavedProjects([]);
     }
-  }, [isLoggedIn, user]); // 💡 Tambahin 'user' di sini supaya datanya sinkron saat login!
+  }, [isLoggedIn, currentUser]); 
 
   const getInitials = (fullName) => {
     if (!fullName) return '?';
@@ -68,28 +106,39 @@ export default function SidebarLeft({ user, isLoggedIn, setIsProfileModalOpen, s
         onClick={() => isLoggedIn && setIsProfileModalOpen(true)} 
         className="bg-white rounded-2xl border border-slate-200/80 shadow-sm text-center cursor-pointer hover:shadow-md hover:scale-[1.005] transition-all duration-200 overflow-hidden group"
       >
-        <div className="h-14 bg-gradient-to-r from-blue-700 to-blue-500 group-hover:opacity-95 transition-opacity"></div>
+        {/* BANNER BACKGROUND */}
+        {currentUser?.banner ? (
+          <div className="h-14 w-full group-hover:opacity-95 transition-opacity">
+            <img 
+              src={currentUser.banner.startsWith('http') ? currentUser.banner : `http://localhost:3000/uploads/${currentUser.banner}`} 
+              alt="Mini Banner" 
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ) : (
+          <div className="h-14 bg-gradient-to-r from-blue-700 to-blue-500 group-hover:opacity-95 transition-opacity"></div>
+        )}
         
         <div className="px-4 pb-5 relative">
-          {user?.avatar ? (
+          {currentUser?.avatar ? (
             <img 
-              src={user.avatar.startsWith('http') ? user.avatar : `http://localhost:3000/uploads/${user.avatar}`} 
+              src={currentUser.avatar.startsWith('http') ? currentUser.avatar : `http://localhost:3000/uploads/${currentUser.avatar}`} 
               alt="Profil Utama" 
               className="w-16 h-16 rounded-full border-4 border-white mx-auto -mt-8 shadow-md object-cover" 
             />
           ) : (
             <div className="w-16 h-16 rounded-full bg-slate-900 border-4 border-white text-white flex items-center justify-center font-black text-xl mx-auto -mt-8 shadow-md">
-              {getInitials(user?.name)}
+              {getInitials(currentUser?.name)}
             </div>
           )}
 
           <h4 className="text-sm font-black text-slate-900 mt-2 m-0 group-hover:text-blue-600 transition-colors">
-            {user?.name} 
-            {isLoggedIn && <span className="text-[10px] text-slate-400 font-normal block mt-0.5">{user?.university}</span>}
+            {currentUser?.name} 
+            {isLoggedIn && <span className="text-[10px] text-slate-400 font-normal block mt-0.5">{currentUser?.university}</span>}
           </h4>
 
           <p className="text-[11px] text-slate-500 mt-1 leading-normal px-2 font-medium m-0">
-            {user?.bio} {isLoggedIn && '🚀'}
+            {currentUser?.bio} {isLoggedIn && '🚀'}
           </p>
 
           {isLoggedIn && (
@@ -112,7 +161,6 @@ export default function SidebarLeft({ user, isLoggedIn, setIsProfileModalOpen, s
             </span>
           </div>
 
-          {/* LIST MINI PROJECT */}
           <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
             {loading ? (
               <p className="text-[10px] text-slate-400 text-center m-0 py-2">Memuat data...</p>
@@ -122,27 +170,22 @@ export default function SidebarLeft({ user, isLoggedIn, setIsProfileModalOpen, s
               </p>
             ) : (
               savedProjects.map((proj) => (
-  <div 
-    key={proj.id} 
-    className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100/70 transition-all cursor-pointer group/item"
-    onClick={() => {
-      console.log("ISI DATA BOOKMARK DARI SIDEBAR:", proj);
-      // 🔥 TRICK SAKTI: Masukkan data project ke state activeProjectDetails
-      setActiveProjectDetails(proj);
-    }}
-  >
-    {/* ... Sisa isi card project (foto, title, description) lu tetep sama di bawahnya ... */}
-    {proj.image ? (
-      <img src={proj.image} className="w-8 h-8 rounded-lg object-cover bg-slate-100 border border-slate-100" alt={proj.title} />
-    ) : (
-      <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center font-bold text-xs">💻</div>
-    )}
-    <div className="flex-1 min-w-0">
-      <p className="text-[11px] font-bold text-slate-700 m-0 truncate group-hover/item:text-blue-600 transition-colors">{proj.title}</p>
-      <p className="text-[9px] text-slate-400 m-0 truncate">{proj.description?.replace(/[#*]/g, '') || 'Tidak ada deskripsi'}</p>
-    </div>
-  </div>
-))
+                <div 
+                  key={proj.id} 
+                  className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100/70 transition-all cursor-pointer group/item"
+                  onClick={() => setActiveProjectDetails(proj)}
+                >
+                  {proj.image ? (
+                    <img src={proj.image} className="w-8 h-8 rounded-lg object-cover bg-slate-100 border border-slate-100" alt={proj.title} />
+                  ) : (
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center font-bold text-xs">💻</div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold text-slate-700 m-0 truncate group-hover/item:text-blue-600 transition-colors">{proj.title}</p>
+                    <p className="text-[9px] text-slate-400 m-0 truncate">{proj.description?.replace(/[#*]/g, '') || 'Tidak ada deskripsi'}</p>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>

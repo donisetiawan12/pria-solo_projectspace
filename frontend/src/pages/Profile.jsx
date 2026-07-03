@@ -21,49 +21,45 @@ export default function Profile() {
     email: ''     
   });
   const [selectedAvatar, setSelectedAvatar] = useState(null);
+  const [selectedBanner, setSelectedBanner] = useState(null); // STATE BARU BANNER
 
-  // 🔥 1. AMBIL INFORMASI LOGGED-IN USER SECARA GLOBAL AGAR BISA DIAKSES SEMUA FUNGSI
+  // AMBIL INFORMASI LOGGED-IN USER SECARA GLOBAL AGAR BISA DIAKSES SEMUA FUNGSI
   const savedUser = localStorage.getItem('user');
   const parsedUser = savedUser ? JSON.parse(savedUser) : null;
 
-const fetchMyProjects = async () => {
-  if (!parsedUser) return;
-  try {
-    setLoading(true);
-    const response = await API.get('/projects'); 
-    const allProjects = response.data.data || response.data || [];
-    
-    if (Array.isArray(allProjects)) {
-      // Kita ambil data pembanding dari user yang lagi login
-      const loggedInName = parsedUser.name ? String(parsedUser.name).toLowerCase().trim() : '';
-      const loggedInNim = parsedUser.nim ? String(parsedUser.nim).toLowerCase().trim() : '';
+  const fetchMyProjects = async () => {
+    if (!parsedUser) return;
+    try {
+      setLoading(true);
+      const response = await API.get('/projects'); 
+      const allProjects = response.data.data || response.data || [];
+      
+      if (Array.isArray(allProjects)) {
+        const loggedInName = parsedUser.name ? String(parsedUser.name).toLowerCase().trim() : '';
+        const loggedInNim = parsedUser.nim ? String(parsedUser.nim).toLowerCase().trim() : '';
 
-      const filtered = allProjects.filter(p => {
-        if (!p.author) return false;
+        const filtered = allProjects.filter(p => {
+          if (!p.author) return false;
 
-        // Ambil data author dari project
-        const authorName = p.author.name ? String(p.author.name).toLowerCase().trim() : '';
-        const authorNim = p.author.nim ? String(p.author.nim).toLowerCase().trim() : '';
+          const authorName = p.author.name ? String(p.author.name).toLowerCase().trim() : '';
+          const authorNim = p.author.nim ? String(p.author.nim).toLowerCase().trim() : '';
 
-        // 🔥 SINKRONISASI COCOKAN BERDASARKAN NAMA ATAU NIM
-        const isNameMatch = loggedInName && authorName === loggedInName;
-        const isNimMatch = loggedInNim && authorNim === loggedInNim;
+          const isNameMatch = loggedInName && authorName === loggedInName;
+          const isNimMatch = loggedInNim && authorNim === loggedInNim;
 
-        return isNameMatch || isNimMatch;
-      });
+          return isNameMatch || isNimMatch;
+        });
 
-      console.log("🔥 AKHIRNYA TEMBUS BRO! HASIL FILTER:", filtered);
-      setMyProjects(filtered);
+        console.log("🔥 AKHIRNYA TEMBUS BRO! HASIL FILTER:", filtered);
+        setMyProjects(filtered);
+      }
+    } catch (error) {
+      console.error("Gagal mengambil data project user:", error);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Gagal mengambil data project user:", error);
-  } finally {
-    setLoading(false);
-  }
-};
-  // ==========================================
-  // FUNGSI 2: AMBIL TOTAL FOLLOWERS DINAMIS
-  // ==========================================
+  };
+
   const fetchFollowersCount = async () => {
     if (!parsedUser || !parsedUser.id) return;
     try {
@@ -73,7 +69,6 @@ const fetchMyProjects = async () => {
       });
 
       if (response.data && response.data.success) {
-        // Fallback mengambil field followersCount dari endpoint backend baru kita
         setFollowerCount(response.data.followersCount || response.data.count || 0);
       }
     } catch (error) {
@@ -82,7 +77,6 @@ const fetchMyProjects = async () => {
     }
   };
 
-  // 2. Lifecycle Utama Halaman Profil
   useEffect(() => {
     if (!parsedUser) {
       Swal.fire({
@@ -109,9 +103,6 @@ const fetchMyProjects = async () => {
     fetchFollowersCount();
   }, [navigate]);
 
-  // ==========================================
-  // FUNGSI 3: UPDATE PROFIL KE BACKEND (FIX FIX FIX)
-  // ==========================================
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     if (!parsedUser || !parsedUser.id) return;
@@ -120,7 +111,6 @@ const fetchMyProjects = async () => {
       Swal.showLoading();
       const formData = new FormData();
       
-      // Mengirimkan payload yang ditarik dari state formProfile yang diinput user
       formData.append('id', parsedUser.id); 
       formData.append('name', formProfile.name);
       formData.append('university', formProfile.university);
@@ -130,25 +120,35 @@ const fetchMyProjects = async () => {
       if (selectedAvatar) {
         formData.append('avatar', selectedAvatar);
       }
+      if (selectedBanner) {
+        formData.append('banner', selectedBanner); // KIRIM BANNER BARU KE BACKEND
+      }
 
       const response = await API.put('/users/profile', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
       if (response.data && response.data.user) {
-        // Update LocalStorage agar pergantian nama/bio langsung permanen saat di-refresh
         const updatedUserData = { ...parsedUser, ...response.data.user };
         localStorage.setItem('user', JSON.stringify(updatedUserData));
         setUser(updatedUserData);
+
+        // 🔥 FIX: Memicu pemicu sinyal global ke Sidebar agar ikut terupdate instan
+        window.dispatchEvent(new Event("profileUpdated"));
       }
 
       setIsProfileModalOpen(false);
+      setSelectedBanner(null);
+      setSelectedAvatar(null);
+      
       Swal.fire({
         icon: 'success',
         title: 'Berhasil!',
         text: 'Profil lu sukses diperbarui bro!',
         timer: 1500,
         showConfirmButton: false
+      }).then(() => {
+        window.location.reload();
       });
 
     } catch (error) {
@@ -218,7 +218,19 @@ const fetchMyProjects = async () => {
         
         {/* ================= CARD 1: HERO PROFILE BANNER ================= */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative">
-          <div className="h-44 bg-[#005fb8]"></div>
+          
+          {/* SINKRONISASI BACKGROUND BANNER DINAMIS */}
+          {user.banner ? (
+            <div className="h-44 w-full">
+              <img 
+                src={user.banner.startsWith('http') ? user.banner : `http://localhost:3000/uploads/${user.banner}`} 
+                alt="Profile Banner" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className="h-44 bg-[#005fb8]"></div>
+          )}
           
           <div className="px-8 relative flex flex-col md:flex-row md:justify-between md:items-start pt-4">
             <div className="flex flex-col md:flex-row items-start gap-5 -mt-20">
@@ -382,6 +394,12 @@ const fetchMyProjects = async () => {
               <div className="flex flex-col gap-1.5">
                 <label>Ganti Foto Profil (Avatar)</label>
                 <input type="file" accept="image/*" onChange={(e) => setSelectedAvatar(e.target.files[0])} className="w-full border border-slate-200 rounded-lg p-2.5 font-medium focus:outline-none" />
+              </div>
+
+              {/* INPUT BARU: GANTI BACKGROUND BANNER */}
+              <div className="flex flex-col gap-1.5">
+                <label>Ganti Background Profil (Banner)</label>
+                <input type="file" accept="image/*" onChange={(e) => setSelectedBanner(e.target.files[0])} className="w-full border border-slate-200 rounded-lg p-2.5 font-medium focus:outline-none" />
               </div>
 
               <div className="flex justify-end gap-2 border-t border-slate-100 pt-4 mt-2">
