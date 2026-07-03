@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import API from '../utils/api'; // Sesuaikan dengan path API axios milikmu
+import API from '../utils/api'; 
 
 export default function Profile() {
   const navigate = useNavigate();
+  const { id } = useParams(); // Mengambil ID dari URL secara dinamis (misal: 5, 6, 7)
   const [user, setUser] = useState(null);
   const [myProjects, setMyProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,87 +22,90 @@ export default function Profile() {
     email: ''     
   });
   const [selectedAvatar, setSelectedAvatar] = useState(null);
-  const [selectedBanner, setSelectedBanner] = useState(null); // STATE BARU BANNER
+  const [selectedBanner, setSelectedBanner] = useState(null);
 
-  // AMBIL INFORMASI LOGGED-IN USER SECARA GLOBAL AGAR BISA DIAKSES SEMUA FUNGSI
+  // AMBIL INFORMASI LOGGED-IN USER SECARA GLOBAL
   const savedUser = localStorage.getItem('user');
   const parsedUser = savedUser ? JSON.parse(savedUser) : null;
 
-  const fetchMyProjects = async () => {
-    if (!parsedUser) return;
-    try {
-      setLoading(true);
-      const response = await API.get('/projects'); 
-      const allProjects = response.data.data || response.data || [];
-      
-      if (Array.isArray(allProjects)) {
-        const loggedInName = parsedUser.name ? String(parsedUser.name).toLowerCase().trim() : '';
-        const loggedInNim = parsedUser.nim ? String(parsedUser.nim).toLowerCase().trim() : '';
-
-        const filtered = allProjects.filter(p => {
-          if (!p.author) return false;
-
-          const authorName = p.author.name ? String(p.author.name).toLowerCase().trim() : '';
-          const authorNim = p.author.nim ? String(p.author.nim).toLowerCase().trim() : '';
-
-          const isNameMatch = loggedInName && authorName === loggedInName;
-          const isNimMatch = loggedInNim && authorNim === loggedInNim;
-
-          return isNameMatch || isNimMatch;
-        });
-
-        console.log("🔥 AKHIRNYA TEMBUS BRO! HASIL FILTER:", filtered);
-        setMyProjects(filtered);
-      }
-    } catch (error) {
-      console.error("Gagal mengambil data project user:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchFollowersCount = async () => {
-    if (!parsedUser || !parsedUser.id) return;
-    try {
-      const token = localStorage.getItem('token');
-      const response = await API.get(`/users/${parsedUser.id}/followers-count`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.data && response.data.success) {
-        setFollowerCount(response.data.followersCount || response.data.count || 0);
-      }
-    } catch (error) {
-      console.error("Gagal mengambil data followers asli:", error);
-      setFollowerCount(0); 
-    }
-  };
+  // Menentukan apakah ini profil milik sendiri atau milik orang lain
+  const isOwnProfile = !id || (parsedUser && String(parsedUser.id) === String(id));
 
   useEffect(() => {
-    if (!parsedUser) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Akses Ditolak',
-        text: 'Lu harus login dulu bro buat liat profil!',
-      });
-      navigate('/');
-      return;
-    }
+    const fetchUserProfileData = async () => {
+      try {
+        setLoading(true);
+        let targetUser = null;
+        let targetId = id;
 
-    setUser(parsedUser);
+        // 1. JIKA MILIK ORANG LAIN: Ambil dari API pakai fetch agar Axios global aman
+        if (!isOwnProfile && id) {
+          const res = await fetch(`http://localhost:3000/users/${id}`);
+          if (!res.ok) throw new Error("Gagal mengambil data profil");
+          targetUser = await res.json();
+          targetId = id;
+        } 
+        // 2. JIKA MILIK SENDIRI: Ambil dari localStorage
+        else {
+          targetUser = parsedUser;
+          targetId = parsedUser?.id;
+        }
 
-    setFormProfile({
-      name: parsedUser.name || '',
-      university: parsedUser.university || '',
-      bio: parsedUser.bio || '',
-      about: parsedUser.about || '',
-      nim: parsedUser.nim || '0110224010', 
-      email: parsedUser.email || 'doni@kampus.ac.id'
-    });
+        if (targetUser) {
+          setUser(targetUser);
+          setFormProfile({
+            name: targetUser?.name || '',
+            university: targetUser?.university || '',
+            bio: targetUser?.bio || '',
+            about: targetUser?.about || '',
+            nim: targetUser?.nim || '',
+            email: targetUser?.email || ''
+          });
 
-    fetchMyProjects();
-    fetchFollowersCount();
-  }, [navigate]);
+          // 3. AMBIL DATA PROJECT SECARA DINAMIS BERDASARKAN USER ID
+          try {
+            const projectsRes = await API.get('/projects'); 
+            const allProjects = projectsRes.data?.data || projectsRes.data || [];
+            if (Array.isArray(allProjects)) {
+              // Menyaring proyek: Hanya memunculkan proyek yang di-author oleh ID user ini
+              const filtered = allProjects.filter(p => {
+                if (!p.author) return false;
+                // Cek kecocokan berdasarkan ID (baik p.user_id, p.author.id, atau p.author_id)
+                const authorId = p.author.id || p.author_id || p.user_id;
+                return String(authorId) === String(targetId);
+              });
+              setMyProjects(filtered);
+            }
+          } catch (projErr) {
+            console.error("Gagal memuat project:", projErr);
+          }
+
+          // 4. AMBIL DATA JUMLAH FOLLOWERS
+          if (targetId) {
+            try {
+              const token = localStorage.getItem('token');
+              const followersRes = await API.get(`/users/${targetId}/followers-count`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+              });
+              if (followersRes.data && followersRes.data.success) {
+                setFollowerCount(followersRes.data.followersCount || followersRes.data.count || 0);
+              }
+            } catch (fErr) {
+              console.error("Gagal memuat followers:", fErr);
+            }
+          }
+        } else {
+          setUser({ name: 'Guest', bio: 'Silahkan login terlebih dahulu.' });
+        }
+      } catch (error) {
+        console.error("Gagal mengambil data profil secara keseluruhan:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfileData();
+  }, [id]); // Memicu reload otomatis setiap kali ID di URL berubah (misal dari /user/5 ke /user/6)
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
@@ -110,19 +114,14 @@ export default function Profile() {
     try {
       Swal.showLoading();
       const formData = new FormData();
-      
       formData.append('id', parsedUser.id); 
       formData.append('name', formProfile.name);
       formData.append('university', formProfile.university);
       formData.append('bio', formProfile.bio);
       formData.append('about', formProfile.about);
       
-      if (selectedAvatar) {
-        formData.append('avatar', selectedAvatar);
-      }
-      if (selectedBanner) {
-        formData.append('banner', selectedBanner); // KIRIM BANNER BARU KE BACKEND
-      }
+      if (selectedAvatar) formData.append('avatar', selectedAvatar);
+      if (selectedBanner) formData.append('banner', selectedBanner);
 
       const response = await API.put('/users/profile', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -132,8 +131,6 @@ export default function Profile() {
         const updatedUserData = { ...parsedUser, ...response.data.user };
         localStorage.setItem('user', JSON.stringify(updatedUserData));
         setUser(updatedUserData);
-
-        // 🔥 FIX: Memicu pemicu sinyal global ke Sidebar agar ikut terupdate instan
         window.dispatchEvent(new Event("profileUpdated"));
       }
 
@@ -144,13 +141,12 @@ export default function Profile() {
       Swal.fire({
         icon: 'success',
         title: 'Berhasil!',
-        text: 'Profil lu sukses diperbarui bro!',
+        text: 'Profil sukses diperbarui!',
         timer: 1500,
         showConfirmButton: false
       }).then(() => {
         window.location.reload();
       });
-
     } catch (error) {
       console.error("Gagal update profil:", error);
       Swal.fire({
@@ -197,11 +193,16 @@ export default function Profile() {
     return fullName[0].toUpperCase();
   };
 
-  if (!user) return null;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f4f4f5] flex items-center justify-center font-sans">
+        <p className="text-sm font-bold text-slate-500">Memuat profil...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f4f4f5] pb-10 font-sans text-slate-900 text-left">
-      
       {/* NAVBAR MINI */}
       <nav className="bg-white border-b border-slate-200 sticky top-0 z-50 px-6 py-3 flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
@@ -215,12 +216,9 @@ export default function Profile() {
 
       {/* MAIN LAYOUT CONTAINER */}
       <div className="max-w-5xl mx-auto mt-6 px-4 flex flex-col gap-6">
-        
-        {/* ================= CARD 1: HERO PROFILE BANNER ================= */}
+        {/* CARD 1: HERO PROFILE BANNER */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative">
-          
-          {/* SINKRONISASI BACKGROUND BANNER DINAMIS */}
-          {user.banner ? (
+          {user?.banner ? (
             <div className="h-44 w-full">
               <img 
                 src={user.banner.startsWith('http') ? user.banner : `http://localhost:3000/uploads/${user.banner}`} 
@@ -234,7 +232,7 @@ export default function Profile() {
           
           <div className="px-8 relative flex flex-col md:flex-row md:justify-between md:items-start pt-4">
             <div className="flex flex-col md:flex-row items-start gap-5 -mt-20">
-              {user.avatar ? (
+              {user?.avatar ? (
                 <img 
                   src={user.avatar.startsWith('http') ? user.avatar : `http://localhost:3000/uploads/${user.avatar}`} 
                   alt="Avatar" 
@@ -242,19 +240,21 @@ export default function Profile() {
                 />
               ) : (
                 <div className="w-32 h-32 rounded-full border-4 border-white bg-[#18181b] text-white flex items-center justify-center font-black text-3xl shadow-md">
-                  {getInitials(user.name)}
+                  {getInitials(user?.name)}
                 </div>
               )}
               
               <div className="mt-16 md:mt-20 text-left">
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-black text-slate-900 m-0">{user.name}</h1>
-                  <span className="bg-[#e0e7ff] text-[#4f46e5] text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
-                    NIM {formProfile.nim}
-                  </span>
+                  <h1 className="text-2xl font-black text-slate-900 m-0">{user?.name}</h1>
+                  {formProfile.nim && (
+                    <span className="bg-[#e0e7ff] text-[#4f46e5] text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
+                      NIM {formProfile.nim}
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-slate-700 font-bold mt-1 max-w-xl leading-relaxed">
-                  {user.bio || 'Informatika Semester 4 | Full Stack Developer | Mencari Project Kolaborasi 🚀'}
+                  {user?.bio || 'Informatika | Student @ Kampus 🚀'}
                 </p>
                 <p className="text-[11px] text-slate-400 font-medium mt-1 m-0">
                   {formProfile.email}
@@ -262,11 +262,11 @@ export default function Profile() {
               </div>
             </div>
 
-            {/* Bagian Stats Kanan */}
+            {/* Stats Kanan */}
             <div className="flex flex-col items-end gap-3 mt-4 md:mt-2 self-end md:self-start">
               <div className="flex gap-2">
                 <div className="bg-white border border-slate-200 p-2 px-4 rounded-xl text-center shadow-sm min-w-[85px]">
-                  <span className="block text-[9px] font-black text-slate-400 uppercase tracking-tight">My Portfolio</span>
+                  <span className="block text-[9px] font-black text-slate-400 uppercase tracking-tight">Portfolio</span>
                   <span className="text-sm font-black text-slate-900">{myProjects.length} Repos</span>
                 </div>
                 <div className="bg-white border border-slate-200 p-2 px-4 rounded-xl text-center shadow-sm min-w-[85px]">
@@ -274,40 +274,40 @@ export default function Profile() {
                   <span className="text-sm font-black text-[#005fb8]">{followerCount} Peers</span>
                 </div>
               </div>
-              <button 
-                onClick={() => setIsProfileModalOpen(true)} 
-                className="bg-slate-100 hover:bg-slate-200 text-slate-700 border-0 font-bold text-xs px-4 py-1.5 rounded-xl cursor-pointer transition-all w-full text-center"
-              >
-                ✏️ Ubah Profil
-              </button>
+              
+              {isOwnProfile && parsedUser && (
+                <button 
+                  onClick={() => setIsProfileModalOpen(true)} 
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 border-0 font-bold text-xs px-4 py-1.5 rounded-xl cursor-pointer transition-all w-full text-center"
+                >
+                  ✏️ Ubah Profil
+                </button>
+              )}
             </div>
           </div>
 
           <div className="px-8 pb-6 mt-4">
             <p className="text-xs text-slate-600 leading-relaxed font-medium m-0 bg-[#f8fafc] p-4 rounded-xl border border-slate-100 whitespace-pre-line">
-              {user.about || 'Mahasiswa IT yang gemar ngoding malam-malam. Fokus pada ekosistem Node.js, Express, React, dan perancangan database MySQL.'}
+              {user?.about || 'Belum ada deskripsi "Tentang Saya" yang ditambahkan oleh user.'}
             </p>
           </div>
         </div>
 
-        {/* ================= CARD 2: REPOSITORY & PROYEK LIST ================= */}
+        {/* CARD 2: REPOSITORY & PROYEK LIST */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 text-left">
           <div className="flex justify-between items-center mb-4">
             <div>
               <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider m-0">Repository & Proyek</h3>
-              <p className="text-[10px] text-slate-400 font-medium m-0 mt-0.5">Daftar karya pemrograman yang berhasil kamu rilis</p>
+              <p className="text-[10px] text-slate-400 font-medium m-0 mt-0.5">Daftar karya pemrograman yang berhasil dirilis</p>
             </div>
             <span className="bg-slate-100 text-slate-700 text-xs font-extrabold px-2.5 py-0.5 rounded-full">
               {myProjects.length} Project
             </span>
           </div>
 
-          {loading ? (
-            <p className="text-xs text-slate-400 font-bold py-4 text-center">Memuat repositori...</p>
-          ) : myProjects.length === 0 ? (
+          {myProjects.length === 0 ? (
             <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl bg-slate-50">
-              <p className="text-xs text-slate-500 font-bold m-0">Kamu belum pernah membagikan project.</p>
-              <button onClick={() => navigate('/')} className="mt-2 text-xs font-black text-[#0a66c2] bg-transparent border-0 cursor-pointer hover:underline">Mulai Publish Karya 🚀</button>
+              <p className="text-xs text-slate-500 font-bold m-0">User ini belum membagikan project.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -322,7 +322,9 @@ export default function Profile() {
                         <span className="text-[10px] text-slate-400 font-medium">
                           {proj.created_at ? new Date(proj.created_at).toLocaleDateString('id-ID') : 'Baru saja'}
                         </span>
-                        <button onClick={() => handleDeleteProject(proj.id)} className="text-red-500 hover:text-red-700 bg-transparent border-0 cursor-pointer p-1 text-xs opacity-80 hover:opacity-100 transition-opacity" title="Hapus Proyek">🗑️</button>
+                        {isOwnProfile && (
+                          <button onClick={() => handleDeleteProject(proj.id)} className="text-red-500 hover:text-red-700 bg-transparent border-0 cursor-pointer p-1 text-xs opacity-80 hover:opacity-100 transition-opacity" title="Hapus Proyek">🗑️</button>
+                        )}
                       </div>
                     </div>
                     
@@ -353,11 +355,10 @@ export default function Profile() {
             </div>
           )}
         </div>
-
       </div>
 
-      {/* ================= MODAL POPUP EDIT PROFILE ================= */}
-      {isProfileModalOpen && (
+      {/* MODAL POPUP EDIT PROFILE */}
+      {isProfileModalOpen && isOwnProfile && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity">
           <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-100 flex flex-col">
             <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
@@ -396,7 +397,6 @@ export default function Profile() {
                 <input type="file" accept="image/*" onChange={(e) => setSelectedAvatar(e.target.files[0])} className="w-full border border-slate-200 rounded-lg p-2.5 font-medium focus:outline-none" />
               </div>
 
-              {/* INPUT BARU: GANTI BACKGROUND BANNER */}
               <div className="flex flex-col gap-1.5">
                 <label>Ganti Background Profil (Banner)</label>
                 <input type="file" accept="image/*" onChange={(e) => setSelectedBanner(e.target.files[0])} className="w-full border border-slate-200 rounded-lg p-2.5 font-medium focus:outline-none" />
@@ -410,7 +410,6 @@ export default function Profile() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

@@ -22,7 +22,7 @@ const upload = multer({ storage: storage });
 
 // ==========================================
 // [PUT] http://localhost:3000/users/profile
-// ENDPOINT UPDATE PROFILE (TETAP UTUH GAK DIGANTI)
+// ENDPOINT UPDATE PROFILE
 // ==========================================
 router.put('/profile', upload.fields([
   { name: 'avatar', maxCount: 1 },
@@ -71,22 +71,48 @@ router.put('/profile', upload.fields([
 
 // ==========================================
 // 🔥 [GET] ENDPOINT REKOMENDASI SIDEBAR KANAN
-// Taruh di atas route "/:id" biar string "recommendations" gak kebaca jadi ID
 // ==========================================
 router.get('/recommendations', userController.getRecommendations);
 
 // ==========================================
 // 🔥 [POST] ENDPOINT TOGGLE FOLLOW USER
-// Kalo lu punya file/fungsi middleware JWT buat baca token, 
-// pasang di tengahnya! Contoh: router.post('/follows/:id', verifyToken, userController.toggleFollow);
 // ==========================================
 router.post('/follows/:id', userController.toggleFollow);
 
 // ==========================================
 // 🔥 [GET] ENDPOINT MUTUAL CONNECTIONS COUNT
-// Bypass lama lu gua ganti pake fungsi dari controller
-// Biar sekarang ngitung jumlah "Saling Follow" beneran
 // ==========================================
 router.get('/:id/followers-count', userController.getConnectionsCount);
+
+// ==========================================
+// 🔥 [GET] ENDPOINT DETAIL PROFIL USER (DINAMIS & AMAN UNTUK SEMUA USER)
+// ==========================================
+router.get('/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    // Taktik 1: Coba ambil semua kolom lengkap (termasuk nim & email)
+    try {
+      const [rows] = await db.query(
+        "SELECT id, name, university, bio, about, avatar, banner, nim, email FROM users WHERE id = ?", 
+        [userId]
+      );
+      if (rows.length === 0) return res.status(404).json({ message: "User tidak ditemukan!" });
+      return res.json(rows[0]);
+    } catch (sqlErr) {
+      // Taktik 2: Fallback jika nim/email tidak ada di struktur tabel MySQL
+      const [rows] = await db.query(
+        "SELECT id, name, university, bio, about, avatar, banner FROM users WHERE id = ?", 
+        [userId]
+      );
+      if (rows.length === 0) return res.status(404).json({ message: "User tidak ditemukan!" });
+      return res.json(rows[0]);
+    }
+
+  } catch (err) {
+    console.error("Error di [GET] /users/:id:", err);
+    return res.status(500).json({ message: "Gagal mengambil data dari database server!" });
+  }
+});
 
 module.exports = router;

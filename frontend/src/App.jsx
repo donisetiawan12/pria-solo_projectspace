@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'; // 🔥 TAMBAHKAN IMPORT INI
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'; 
 import AuthModal from './components/AuthModal'; 
 import Home from './pages/Home'; 
 import Profile from './pages/Profile'; 
@@ -106,10 +106,10 @@ export default function App() {
           path="/profile" 
           element={isLoggedIn ? <Profile /> : <Navigate to="/" replace />} 
         />
+        <Route path="/user/:id" element={<Profile />} />
       </Routes>
 
       {/* ================= PORTAL GLOBAL AUTH MODAL ================= */}
-      {/* Dilepaskan di luar router agar bisa diakses baik dari landing maupun feed */}
       {isAuthOpen && (
         <AuthModal 
           authMode={authMode} 
