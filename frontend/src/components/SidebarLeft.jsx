@@ -1,6 +1,58 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
-export default function SidebarLeft({ user, isLoggedIn, setIsProfileModalOpen }) {
+export default function SidebarLeft({ user, isLoggedIn, setIsProfileModalOpen, setActiveProjectDetails }) {  const [savedProjects, setSavedProjects] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+ // 1. AMBIL DATA BOOKMARK DARI BACKEND + SUNTIK DATA AUTHOR
+  useEffect(() => {
+    if (isLoggedIn) {
+      const fetchMyBookmarks = async () => {
+        setLoading(true);
+        try {
+          const token = localStorage.getItem('token');
+          if (!token) return;
+
+          const response = await fetch('http://localhost:3000/bookmarks/my-bookmarks', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (response.ok) {
+            const resData = await response.json();
+            const rawBookmarks = resData.data || [];
+
+            // 🔥 TRICK SAKTI: Format data mentah dari DB biar punya objek 'author'
+            const formattedBookmarks = rawBookmarks.map(proj => {
+              if (!proj.author) {
+                return {
+                  ...proj,
+                  author: {
+                    name: user?.name || 'User',
+                    avatar: user?.avatar || null,
+                    nim: user?.university || 'Mahasiswa'
+                  }
+                };
+              }
+              return proj;
+            });
+
+            // Set data yang udah matang dan lengkap ke state sidebar
+            setSavedProjects(formattedBookmarks);
+          }
+        } catch (error) {
+          console.error("Gagal load bookmark di sidebar:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchMyBookmarks();
+    } else {
+      setSavedProjects([]);
+    }
+  }, [isLoggedIn, user]); // 💡 Tambahin 'user' di sini supaya datanya sinkron saat login!
+
   const getInitials = (fullName) => {
     if (!fullName) return '?';
     const names = fullName.trim().split(' ');
@@ -9,8 +61,9 @@ export default function SidebarLeft({ user, isLoggedIn, setIsProfileModalOpen })
   };
 
   return (
-    // 💡 Di sini kita bersihkan class grid-nya bro, sisakan flex & sticky aja
     <div className="flex flex-col gap-4 sticky top-4 h-fit">
+      
+      {/* CARD PROFIL USER */}
       <div 
         onClick={() => isLoggedIn && setIsProfileModalOpen(true)} 
         className="bg-white rounded-2xl border border-slate-200/80 shadow-sm text-center cursor-pointer hover:shadow-md hover:scale-[1.005] transition-all duration-200 overflow-hidden group"
@@ -18,7 +71,7 @@ export default function SidebarLeft({ user, isLoggedIn, setIsProfileModalOpen })
         <div className="h-14 bg-gradient-to-r from-blue-700 to-blue-500 group-hover:opacity-95 transition-opacity"></div>
         
         <div className="px-4 pb-5 relative">
-          {user.avatar ? (
+          {user?.avatar ? (
             <img 
               src={user.avatar.startsWith('http') ? user.avatar : `http://localhost:3000/uploads/${user.avatar}`} 
               alt="Profil Utama" 
@@ -26,17 +79,17 @@ export default function SidebarLeft({ user, isLoggedIn, setIsProfileModalOpen })
             />
           ) : (
             <div className="w-16 h-16 rounded-full bg-slate-900 border-4 border-white text-white flex items-center justify-center font-black text-xl mx-auto -mt-8 shadow-md">
-              {getInitials(user.name)}
+              {getInitials(user?.name)}
             </div>
           )}
 
           <h4 className="text-sm font-black text-slate-900 mt-2 m-0 group-hover:text-blue-600 transition-colors">
-            {user.name} 
-            {isLoggedIn && <span className="text-[10px] text-slate-400 font-normal block mt-0.5">{user.university}</span>}
+            {user?.name} 
+            {isLoggedIn && <span className="text-[10px] text-slate-400 font-normal block mt-0.5">{user?.university}</span>}
           </h4>
 
           <p className="text-[11px] text-slate-500 mt-1 leading-normal px-2 font-medium m-0">
-            {user.bio} {isLoggedIn && '🚀'}
+            {user?.bio} {isLoggedIn && '🚀'}
           </p>
 
           {isLoggedIn && (
@@ -46,6 +99,55 @@ export default function SidebarLeft({ user, isLoggedIn, setIsProfileModalOpen })
           )}
         </div>
       </div>
+
+      {/* CARD WIDGET BOOKMARK */}
+      {isLoggedIn && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <h5 className="text-xs font-black text-slate-800 m-0 flex items-center gap-1.5">
+              🔖 Project Tersimpan
+            </h5>
+            <span className="bg-blue-50 text-blue-600 font-black text-[10px] px-2 py-0.5 rounded-full">
+              {savedProjects.length}
+            </span>
+          </div>
+
+          {/* LIST MINI PROJECT */}
+          <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+            {loading ? (
+              <p className="text-[10px] text-slate-400 text-center m-0 py-2">Memuat data...</p>
+            ) : savedProjects.length === 0 ? (
+              <p className="text-[10px] text-slate-400 text-center m-0 py-4 font-normal">
+                Belum ada project yang disimpan.
+              </p>
+            ) : (
+              savedProjects.map((proj) => (
+  <div 
+    key={proj.id} 
+    className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100/70 transition-all cursor-pointer group/item"
+    onClick={() => {
+      console.log("ISI DATA BOOKMARK DARI SIDEBAR:", proj);
+      // 🔥 TRICK SAKTI: Masukkan data project ke state activeProjectDetails
+      setActiveProjectDetails(proj);
+    }}
+  >
+    {/* ... Sisa isi card project (foto, title, description) lu tetep sama di bawahnya ... */}
+    {proj.image ? (
+      <img src={proj.image} className="w-8 h-8 rounded-lg object-cover bg-slate-100 border border-slate-100" alt={proj.title} />
+    ) : (
+      <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center font-bold text-xs">💻</div>
+    )}
+    <div className="flex-1 min-w-0">
+      <p className="text-[11px] font-bold text-slate-700 m-0 truncate group-hover/item:text-blue-600 transition-colors">{proj.title}</p>
+      <p className="text-[9px] text-slate-400 m-0 truncate">{proj.description?.replace(/[#*]/g, '') || 'Tidak ada deskripsi'}</p>
+    </div>
+  </div>
+))
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

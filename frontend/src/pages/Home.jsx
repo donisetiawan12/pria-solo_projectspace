@@ -63,6 +63,8 @@ export default function Home({ isLoggedIn, onLogout, setIsAuthOpen, setAuthMode 
   });
   const [selectedImage, setSelectedImage] = useState(null);
 
+  const [activeComments, setActiveComments] = useState([]);
+
   // 🔥 BARU: STATE UNTUK MODAL EDIT PROJECT
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState(null);
@@ -135,6 +137,26 @@ export default function Home({ isLoggedIn, onLogout, setIsAuthOpen, setAuthMode 
     }
     fetchFeedProjects();
   }, [isLoggedIn]);
+
+  useEffect(() => {
+  const fetchCommentsForModal = async () => {
+    if (!activeProjectDetails || !activeProjectDetails.id) {
+      setActiveComments([]);
+      return;
+    }
+    try {
+      const response = await fetch(`http://localhost:3000/comments/${activeProjectDetails.id}`);
+      if (response.ok) {
+        const resData = await response.json();
+        setActiveComments(resData.data || []); // Ambil array komentar dari backend
+      }
+    } catch (error) {
+      console.error("Gagal ambil komen untuk modal:", error);
+    }
+  };
+
+  fetchCommentsForModal();
+}, [activeProjectDetails]);
 
   // 3. FUNGSI UTILITY & AKSES
   const bukaModalLogin = () => {
@@ -552,7 +574,6 @@ const handleToggleLike = async (projectId) => {
 
 const openCommentModal = async (projectObj) => {
   try {
-    // Cek di console apakah data project masuk pas diklik
     console.log("Project yang diklik:", projectObj);
 
     if (!projectObj || !projectObj.id) {
@@ -562,11 +583,16 @@ const openCommentModal = async (projectObj) => {
 
     // 1. Ambil data komentar dari backend
     const response = await fetch(`http://localhost:3000/comments/${projectObj.id}`);
-    const resData = await response.json();
     
+    // 🔥 PENGAMAN 1: Jika server ngasih HTML eror/404, stop di sini biar gak bikin layar putih!
+    if (!response.ok) {
+      Swal.fire({ icon: 'error', title: 'Aduh Bro', text: 'Gagal memuat daftar komentar untuk project ini.' });
+      return;
+    }
+
+    const resData = await response.json();
     console.log("Respon data dari backend:", resData);
 
-    // Ambil array komentarnya (sesuai format controller: resData.data)
     const commentList = resData.data || [];
 
     // 2. Susun HTML daftar komentar
@@ -634,12 +660,16 @@ const openCommentModal = async (projectObj) => {
         if (sendResponse.ok) {
           Swal.fire({ icon: 'success', title: 'Komen Terkirim!', showConfirmButton: false, timer: 1200 });
 
-          // 🔥 TRICK SAKTI: Tambah angka komentar langsung di UI tanpa reload!
-          setProjects((prevProjects) =>
-            prevProjects.map((p) =>
-              p.id === projectObj.id ? { ...p, commentsCount: (p.commentsCount || 0) + 1 } : p
-            )
-          );
+          // 🔥 PENGAMAN 2: Cek dulu apakah fungsi state updater ada di file ini, biar gak crash pas diklik dari sidebar
+          if (typeof setProjects === "function") {
+            setProjects((prevProjects) =>
+              prevProjects.map((p) =>
+                p.id === projectObj.id ? { ...p, commentsCount: (p.commentsCount || 0) + 1 } : p
+              )
+            );
+          }
+          
+          // 🔥 TAMBAHAN: Kalau mau sidebar-nya ikut terupdate otomatis angkanya tanpa reload, lu bisa panggil fetch bookmark lagi di sini nantinya.
 
         } else {
           const errData = await sendResponse.json();
@@ -702,11 +732,12 @@ const handleToggleBookmark = async (projectId) => {
       {/* ================= MAIN CONTENT GRID ================= */}
       <div className="home-main-grid">
         
-        <SidebarLeft 
-          user={user} 
-          isLoggedIn={isLoggedIn} 
-          setIsProfileModalOpen={setIsProfileModalOpen} 
-        />
+       <SidebarLeft 
+  user={user} 
+  isLoggedIn={isLoggedIn} 
+  setIsProfileModalOpen={setIsProfileModalOpen}
+  setActiveProjectDetails={setActiveProjectDetails} // 🔥 Lempar state setter modal lu ke sini!
+/>
 
         {/* 2. FEED MIDDLE */}
         <main className="flex flex-col gap-4">
@@ -1268,104 +1299,144 @@ const handleToggleBookmark = async (projectId) => {
 
       {/* ================= MODAL DETAIL POPUP VIEW PROJECT ================= */}
       {activeProjectDetails && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-2 sm:p-4 transition-all animate-fade-in text-slate-100">
-          <div className="bg-[#161b22] border border-[#30363d] rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col md:flex-row h-full max-h-[92vh] md:max-h-[85vh] animate-slide-up">
+  <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-2 sm:p-4 transition-all animate-fade-in text-slate-100">
+    <div className="bg-[#161b22] border border-[#30363d] rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col md:flex-row h-full max-h-[92vh] md:max-h-[85vh] animate-slide-up">
+      
+      {/* SISI KIRI: SCREENSHOT APP */}
+      <div className="w-full md:w-3/5 bg-[#0d1117] p-4 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-[#30363d] relative min-h-[250px] md:min-h-0">
+        <img 
+          src={activeProjectDetails.image.startsWith('http') ? activeProjectDetails.image : `http://localhost:3000/uploads/${activeProjectDetails.image}`} 
+          alt={activeProjectDetails.title}
+          className="max-w-full max-h-[35vh] md:max-h-[65vh] object-contain rounded-lg shadow-lg"
+        />
+        <p className="text-[10px] text-slate-500 mt-3 font-semibold tracking-wide uppercase">
+          {activeProjectDetails.title} - App Screenshot
+        </p>
+      </div>
+
+      {/* SISI KANAN: DETAIL INFO & DISKUSI */}
+      <div className="w-full md:w-2/5 flex flex-col h-full bg-[#161b22]">
+        
+        {/* HEADER MODAL: DATA PROFIL AUTHOR (SUDAH DI-FIX) */}
+        <div className="p-5 border-b border-[#30363d] flex justify-between items-center shrink-0">
+          <div className="flex gap-3 items-center">
             
-            <div className="w-full md:w-3/5 bg-[#0d1117] p-4 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-[#30363d] relative min-h-[250px] md:min-h-0">
-              <img 
-                src={activeProjectDetails.image.startsWith('http') ? activeProjectDetails.image : `http://localhost:3000/uploads/${activeProjectDetails.image}`} 
-                alt={activeProjectDetails.title}
-                className="max-w-full max-h-[35vh] md:max-h-[65vh] object-contain rounded-lg shadow-lg"
-              />
-              <p className="text-[10px] text-slate-500 mt-3 font-semibold tracking-wide uppercase">
-                {activeProjectDetails.title} - App Screenshot
+            {/* 1. FOTO PROFIL / INISIAL */}
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-700 to-slate-900 text-white flex items-center justify-center font-bold text-xs ring-2 ring-slate-800 overflow-hidden shrink-0">
+              {activeProjectDetails.author?.avatar ? (
+                <img src={activeProjectDetails.author.avatar.startsWith('http') ? activeProjectDetails.author.avatar : `http://localhost:3000/uploads/${activeProjectDetails.author.avatar}`} alt="Avatar" className="w-full h-full object-cover" />
+              ) : activeProjectDetails.user_id === user?.id && user?.avatar ? (
+                <img src={user.avatar.startsWith('http') ? user.avatar : `http://localhost:3000/uploads/${user.avatar}`} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                getInitials(activeProjectDetails.author?.name || (activeProjectDetails.user_id === user?.id ? user?.name : 'U'))
+              )}
+            </div>
+            
+            {/* 2. NAMA & NIM AUTHOR */}
+            <div className="text-left">
+              <h4 className="text-xs font-bold text-white m-0">
+                {activeProjectDetails.author?.name || 
+                 (activeProjectDetails.user_id === user?.id ? user?.name : 'Anonymous')}
+              </h4>
+              <p className="text-[10px] text-slate-400 font-medium m-0 mt-0.5">
+                {activeProjectDetails.author?.nim || 
+                 (activeProjectDetails.user_id === user?.id ? user?.university || user?.nim : 'Mahasiswa')}
               </p>
             </div>
 
-            <div className="w-full md:w-2/5 flex flex-col h-full bg-[#161b22]">
-              <div className="p-5 border-b border-[#30363d] flex justify-between items-start shrink-0">
-                <div className="flex gap-3 items-center">
-                  
-                  {/* 👇 1. FIX FOTO PROFIL / INISIAL AUTHOR */}
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-700 to-slate-900 text-white flex items-center justify-center font-bold text-xs ring-2 ring-slate-800 overflow-hidden">
-                    {activeProjectDetails.author?.avatar ? (
-                      <img src={activeProjectDetails.author.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      getInitials(activeProjectDetails.author?.name || 'U')
-                    )}
-                  </div>
-                  
-                  <div className="text-left">
-                    {/* 👇 2. FIX NAMA AUTHOR */}
-                    <h4 className="text-xs font-bold text-white m-0">
-                      {activeProjectDetails.author?.name || 'Anonymous'}
-                    </h4>
-                    {/* 👇 3. FIX NIM / UNIVERSITAS AUTHOR */}
-                    <p className="text-[10px] text-slate-400 font-medium m-0 mt-0.5">
-                      {activeProjectDetails.author?.nim || 'Mahasiswa'}
-                    </p>
-                  </div>
+          </div>
 
-                </div>
-                <button onClick={() => setActiveProjectDetails(null)} className="text-slate-400 hover:text-white bg-transparent border-0 cursor-pointer text-xl font-bold p-1 leading-none">
-                  &times;
-                </button>
-              </div>
+          {/* TOMBOL CLOSE MODAL */}
+          <button onClick={() => setActiveProjectDetails(null)} className="text-slate-400 hover:text-white bg-transparent border-0 cursor-pointer text-xl font-bold p-1 leading-none">
+            &times;
+          </button>
+        </div>
 
-              <div className="p-5 flex flex-col gap-4 overflow-y-auto text-left flex-grow">
-                <div>
-                  <span className="bg-blue-500/10 text-blue-400 text-[9px] font-black px-2.5 py-0.5 rounded-full border border-blue-500/20 uppercase tracking-wider mb-2 inline-block">
-                    {activeProjectDetails.tags}
+        {/* BODY MODAL: DESKRIPSI, TECH STACK, KOMENTAR */}
+        <div className="p-5 flex flex-col gap-4 overflow-y-auto text-left flex-grow">
+          
+          {/* JUDUL & DESKRIPSI */}
+          <div>
+            <span className="bg-blue-500/10 text-blue-400 text-[9px] font-black px-2.5 py-0.5 rounded-full border border-blue-500/20 uppercase tracking-wider mb-2 inline-block">
+              {activeProjectDetails.tags || 'PROJECT'}
+            </span>
+            <h3 className="text-sm font-extrabold text-white leading-snug m-0">{activeProjectDetails.title}</h3>
+            <p className="text-xs text-slate-300 leading-relaxed font-medium m-0 mt-2 whitespace-pre-line bg-[#0d1117] p-3 rounded-xl border border-[#30363d]">
+              {activeProjectDetails.description || 'Tidak ada deskripsi tambahan.'}
+            </p>
+          </div>
+
+          {/* TECH STACK REFERENCE */}
+          <div className="border-t border-[#30363d] pt-3">
+            <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider m-0 mb-2">Tech Stack Reference</h5>
+            <div className="flex flex-wrap gap-1.5">
+              {activeProjectDetails.tech_stack ? (
+                activeProjectDetails.tech_stack.split(',').map((tech, index) => (
+                  <span key={index} className="bg-[#21262d] text-slate-300 text-[10px] px-2.5 py-1 rounded-full border border-[#30363d] font-medium">
+                    {tech.trim()}
                   </span>
-                  <h3 className="text-sm font-extrabold text-white leading-snug m-0">{activeProjectDetails.title}</h3>
-                  <p className="text-xs text-slate-300 leading-relaxed font-medium m-0 mt-2 whitespace-pre-line bg-[#0d1117] p-3 rounded-xl border border-[#30363d]">
-                    {activeProjectDetails.description || 'Tidak ada deskripsi tambahan.'}
-                  </p>
-                </div>
-
-                {/* 🔥 DINAMIS DARI DB: Tech Stack Reference */}
-                <div className="border-t border-[#30363d] pt-3">
-                  <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider m-0 mb-2">Tech Stack Reference</h5>
-                  <div className="flex flex-wrap gap-1.5">
-                    {activeProjectDetails.tech_stack ? (
-                      activeProjectDetails.tech_stack.split(',').map((tech, index) => (
-                        <span key={index} className="bg-[#21262d] text-slate-300 text-[10px] px-2.5 py-1 rounded-full border border-[#30363d] font-medium">
-                          {tech.trim()}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="bg-[#21262d] text-slate-500 text-[10px] px-2.5 py-1 rounded-full border border-[#30363d] font-medium italic">
-                        No tech stack added
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="border-t border-[#30363d] pt-3 flex-grow flex flex-col min-h-[150px]">
-                  <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider m-0 mb-2">Diskusi Proyek (0)</h5>
-                  <div className="flex flex-col gap-2 flex-grow justify-center items-center text-center text-slate-500 text-[11px] py-4 bg-[#0d1117] rounded-xl border border-[#30363d] border-dashed">
-                    <span>💬 Belum ada komentar. <br/>Jadilah yang pertama mengapresiasi!</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-4 border-t border-[#30363d] bg-[#0d1117] flex gap-2 shrink-0">
-                {activeProjectDetails.github_link && (
-                  <a href={activeProjectDetails.github_link} target="_blank" rel="noreferrer" className="flex-1 bg-[#21262d] hover:bg-[#30363d] text-white text-[11px] font-bold py-2 rounded-xl border border-[#30363d] no-underline inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
-                    Source Code
-                  </a>
-                )}
-                {activeProjectDetails.demo_link && (
-                  <a href={activeProjectDetails.demo_link} target="_blank" rel="noreferrer" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold py-2 rounded-xl no-underline inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
-                    Live Demo
-                  </a>
-                )}
-              </div>
-
+                ))
+              ) : (
+                <span className="bg-[#21262d] text-slate-500 text-[10px] px-2.5 py-1 rounded-full border border-[#30363d] font-medium italic">
+                  No tech stack added
+                </span>
+              )}
             </div>
           </div>
+
+          {/* DISKUSI / KOMENTAR DINAMIS */}
+          <div className="border-t border-[#30363d] pt-3 flex-grow flex flex-col min-h-[150px]">
+            <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider m-0 mb-2">
+              Diskusi Proyek ({activeComments.length})
+            </h5>
+            
+            <div className="flex flex-col gap-2 flex-grow overflow-y-auto max-h-[200px] pr-1">
+              {activeComments.length === 0 ? (
+                <div className="flex flex-col gap-2 flex-grow justify-center items-center text-center text-slate-500 text-[11px] py-4 bg-[#0d1117] rounded-xl border border-[#30363d] border-dashed">
+                  <span>💬 Belum ada komentar. <br/>Jadilah yang pertama mengapresiasi!</span>
+                </div>
+              ) : (
+                activeComments.map((c, index) => (
+                  <div key={index} className="flex gap-2.5 items-start bg-[#0d1117] p-2.5 rounded-xl border border-[#30363d] text-left">
+                    <img 
+                      src={c.user_avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'} 
+                      className="w-7 h-7 rounded-full object-cover border border-[#30363d] shrink-0" 
+                      alt="Avatar"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[11px] font-extrabold text-slate-200 block truncate">
+                        {c.user_name || 'Anonymous'}
+                      </span>
+                      <p className="text-[11px] text-slate-300 m-0 mt-0.5 leading-relaxed font-medium whitespace-pre-line">
+                        {c.comment}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
         </div>
-      )}
+
+        {/* FOOTER MODAL: LINK SOURCE & DEMO */}
+        <div className="p-4 border-t border-[#30363d] bg-[#0d1117] flex gap-2 shrink-0">
+          {activeProjectDetails.github_link && (
+            <a href={activeProjectDetails.github_link} target="_blank" rel="noreferrer" className="flex-1 bg-[#21262d] hover:bg-[#30363d] text-white text-[11px] font-bold py-2 rounded-xl border border-[#30363d] no-underline inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
+              Source Code
+            </a>
+          )}
+          {activeProjectDetails.demo_link && (
+            <a href={activeProjectDetails.demo_link} target="_blank" rel="noreferrer" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold py-2 rounded-xl no-underline inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
+              Live Demo
+            </a>
+          )}
+        </div>
+
+      </div>
+    </div>
+  </div>
+)}
 
 
 

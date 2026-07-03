@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jul 03, 2026 at 05:04 PM
+-- Generation Time: Jul 03, 2026 at 07:05 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -39,7 +39,10 @@ CREATE TABLE `bookmarks` (
 --
 
 INSERT INTO `bookmarks` (`id`, `user_id`, `project_id`, `created_at`) VALUES
-(1, 1, 2, '2026-05-02 17:42:38');
+(2, 5, 6, '2026-07-03 16:22:50'),
+(3, 5, 3, '2026-07-03 16:23:15'),
+(9, 6, 3, '2026-07-03 16:51:47'),
+(10, 6, 6, '2026-07-03 16:57:32');
 
 -- --------------------------------------------------------
 
@@ -61,7 +64,9 @@ CREATE TABLE `comments` (
 --
 
 INSERT INTO `comments` (`id`, `user_id`, `project_id`, `comment`, `created_at`, `parent_id`) VALUES
-(1, 1, 2, 'Keren Banget', '2026-05-02 17:41:54', NULL);
+(2, 6, 6, 'keren mas itu website nya', '2026-07-03 16:13:51', NULL),
+(3, 6, 3, 'kok gbsa ya', '2026-07-03 16:14:37', NULL),
+(4, 6, 6, 'keren cuy', '2026-07-03 16:26:46', NULL);
 
 -- --------------------------------------------------------
 
@@ -82,7 +87,9 @@ CREATE TABLE `follows` (
 
 INSERT INTO `follows` (`id`, `follower_id`, `following_id`, `created_at`) VALUES
 (1, 1, 2, '2026-05-02 17:41:39'),
-(3, 5, 3, '2026-07-03 15:03:58');
+(3, 5, 3, '2026-07-03 15:03:58'),
+(4, 6, 5, '2026-07-03 15:42:46'),
+(5, 5, 6, '2026-07-03 16:23:11');
 
 -- --------------------------------------------------------
 
@@ -96,6 +103,14 @@ CREATE TABLE `likes` (
   `project_id` int(11) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `likes`
+--
+
+INSERT INTO `likes` (`id`, `user_id`, `project_id`, `created_at`) VALUES
+(16, 6, 3, '2026-07-03 16:03:18'),
+(17, 6, 6, '2026-07-03 16:26:40');
 
 -- --------------------------------------------------------
 
@@ -123,8 +138,8 @@ CREATE TABLE `projects` (
 --
 
 INSERT INTO `projects` (`id`, `user_id`, `title`, `description`, `image`, `github_link`, `demo_link`, `created_at`, `is_free`, `tags`, `tech_stack`, `views`) VALUES
-(2, 3, 'Project User1 ', 'test', '1777743459478-990180363.png', 'https://github.com/donisetiawan12/pria-solo_projectspace.git', NULL, '2026-05-02 17:37:39', 1, NULL, NULL, 0),
-(3, 5, 'project gua', 'project ini adalah [punya gua ', '1783086773004-52676208.png', 'https://github.com', 'https://orderly.web.id', '2026-07-03 13:52:53', 1, 'Web App', NULL, 0);
+(3, 5, 'project gua', 'project ini adalah [punya gua ', '1783086773004-52676208.png', 'https://github.com', 'https://orderly.web.id', '2026-07-03 13:52:53', 1, 'Web App', NULL, 0),
+(6, 6, 'Website Orderly', 'Website Pre Order Mahasiswa Berbagai Produk , Banyak Fitur yang dapat di coba...\r\n\r\nFitur :\r\n\r\n1. Login/Register\r\n2. CO Produk\r\n3. Manajemen Produk Untuk yang ingin Jualan\r\n4. Proses tracking Secara Terstruktur\r\n5. Pembayaran Digital\r\n\r\n#webap', '1783093708113-988765554.png', 'https://github.com', 'https://orderly.web.id', '2026-07-03 15:48:28', 0, 'Web App', 'React.js, Html, Css, php, Tailwinds CSS', 0);
 
 -- --------------------------------------------------------
 
@@ -166,7 +181,8 @@ INSERT INTO `users` (`id`, `name`, `email`, `password`, `university`, `bio`, `ab
 (2, 'User2', 'user2@gmail.com', '$2b$10$fap/EK5/dLyFv4hsYHYZ.Ooqs2JKeDKwzhKdDeQG3rDn0lrqdINGa', NULL, NULL, NULL, '2026-05-02 17:31:01', NULL, 'user'),
 (3, 'User3', 'user3@gmail.com', '$2b$10$6rVU5KJICsSoVcG2aUSUEeNUrdAMFGRs/DcMyzovGrZ9OQLTnLtay', NULL, NULL, NULL, '2026-05-02 17:36:22', NULL, 'user'),
 (4, 'tompel', 'tompel@gmail.com', '$2b$10$25Pmc2gLOu6ZsJ5cLlgB..DeLuoHgb8dd7vB3gwF0JRn10Kt05YLW', '023123', 'uiux aja dah', NULL, '2026-07-03 13:36:35', 'avatar-1783086221038.png', 'user'),
-(5, 'tes', 'tes@gmail.com', '$2b$10$Ysmx2nKxq44Ewph9AbrHIulwhaJPgw5MGPcSjBMdk7ybcUgcw/hsK', '2131121', 'Developer ', NULL, '2026-07-03 13:50:31', 'avatar-1783086791699.png', 'user');
+(5, 'tes', 'tes@gmail.com', '$2b$10$Ysmx2nKxq44Ewph9AbrHIulwhaJPgw5MGPcSjBMdk7ybcUgcw/hsK', '2131121', 'Developer ', NULL, '2026-07-03 13:50:31', 'avatar-1783086791699.png', 'user'),
+(6, 'Doni Setiawan', 'doni@gmail.com', '$2b$10$IfiNvTndihNUUCfbFaPgFOvfom5bHAEtGs/JxddTdyCILLR60U/qW', '0110224010', 'Development', NULL, '2026-07-03 15:38:20', 'avatar-1783093534138.webp', 'user');
 
 --
 -- Indexes for dumped tables
@@ -236,31 +252,31 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `bookmarks`
 --
 ALTER TABLE `bookmarks`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `comments`
 --
 ALTER TABLE `comments`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `follows`
 --
 ALTER TABLE `follows`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `likes`
 --
 ALTER TABLE `likes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- AUTO_INCREMENT for table `projects`
 --
 ALTER TABLE `projects`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `project_images`
@@ -272,7 +288,7 @@ ALTER TABLE `project_images`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- Constraints for dumped tables
