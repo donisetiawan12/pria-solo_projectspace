@@ -16,11 +16,11 @@ const getUserById = (id) => {
   );
 };
 
-// CREATE USER
-const createUser = async (name, email, password, university, bio) => {
+// 🟢 KODE FIX BARU DI userModel.js (Ganti university jadi nim)
+const createUser = async (name, email, password, nim, bio) => {
   return db.execute(
-    'INSERT INTO users (name, email, password, university, bio, role) VALUES (?, ?, ?, ?, ?, "user")',
-    [name, email, password, university, bio]
+    'INSERT INTO users (name, email, password, nim, bio, role) VALUES (?, ?, ?, ?, ?, "user")',
+    [name, email, password, nim || '', bio || '']
   );
 };
 

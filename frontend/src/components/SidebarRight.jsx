@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom'; // ➔ 1. IMPORT LINK DI SINI BIAR BISA NAVIGASI
 import API from '../utils/api'; 
 
 // 🔥 1. TERIMA PROP FUNGSI LOGIN NAVBAR DI SINI
 export default function SidebarRight({ rekomendasiUsers = [], bukaModalLogin }) {
   const [followingStates, setFollowingStates] = useState({});
 
-
   // Sync ulang state tombol setiap kali data rekomendasiUsers berubah (termasuk pasca login/logout)
-useEffect(() => {
-  if (rekomendasiUsers && rekomendasiUsers.length > 0) {
-    const initialStates = {};
-    rekomendasiUsers.forEach((user) => {
-      // Set true jika isFollowing dari DB bernilai true
-      initialStates[user.id] = !!user.isFollowing; 
-    });
-    setFollowingStates(initialStates);
-  }
-}, [rekomendasiUsers]);
+  useEffect(() => {
+    if (rekomendasiUsers && rekomendasiUsers.length > 0) {
+      const initialStates = {};
+      rekomendasiUsers.forEach((user) => {
+        // Set true jika isFollowing dari DB bernilai true
+        initialStates[user.id] = !!user.isFollowing; 
+      });
+      setFollowingStates(initialStates);
+    }
+  }, [rekomendasiUsers]);
 
   const handleFollowToggle = async (targetUser) => {
     const targetId = targetUser.id; 
@@ -61,9 +61,6 @@ useEffect(() => {
     }
   };
 
-  // ... sisa kode getInitials dan return JSX ke bawah tetap sama ...
-  // (HAPUS <AuthModal /> yang di paling bawah tadi, biar gak dobel)
-
   const getInitials = (fullName) => {
     if (!fullName) return '?';
     const names = fullName.trim().split(' ');
@@ -89,24 +86,30 @@ useEffect(() => {
               return (
                 <div key={u.id || index} className="flex items-start gap-3 py-3 border-b border-slate-100 last:border-0 last:pb-1">
                   
-                  {u.avatar ? (
-                    <img 
-                      src={u.avatar.startsWith('http') ? u.avatar : `http://localhost:3000/uploads/${u.avatar}`} 
-                      alt={u.name} 
-                      className="w-11 h-11 rounded-full object-cover shrink-0 border border-slate-100 mt-0.5" 
-                    />
-                  ) : (
-                    <div className="w-11 h-11 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-xs shrink-0 mt-0.5">
-                      {getInitials(u.name)}
-                    </div>
-                  )}
+                  {/* ➔ 2. BUNGKUS FOTO PROFIL DENGAN LINK */}
+                  <Link to={`/user/${u.id}`} className="shrink-0 transition-opacity hover:opacity-80">
+                    {u.avatar ? (
+                      <img 
+                        src={u.avatar.startsWith('http') ? u.avatar : `http://localhost:3000/uploads/${u.avatar}`} 
+                        alt={u.name} 
+                        className="w-11 h-11 rounded-full object-cover border border-slate-100 mt-0.5" 
+                      />
+                    ) : (
+                      <div className="w-11 h-11 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-xs mt-0.5">
+                        {getInitials(u.name)}
+                      </div>
+                    )}
+                  </Link>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 w-full">
-                      <span className="font-bold text-slate-900 text-sm truncate hover:underline cursor-pointer leading-tight">
-                        {u.name}
-                      </span>
                       
+                      {/* ➔ 3. BUNGKUS NAMA USER DENGAN LINK */}
+                      <Link to={`/user/${u.id}`} className="font-bold text-slate-900 text-sm truncate hover:underline cursor-pointer leading-tight block">
+                        {u.name}
+                      </Link>
+                      
+                      {/* Tombol Follow tetap di luar Link agar tidak bentrok saat diklik */}
                       <button 
                         type="button" 
                         onClick={() => handleFollowToggle(u)}
