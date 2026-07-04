@@ -16,6 +16,7 @@ const getUserById = (id) => {
   );
 };
 
+// CREATE USER
 // 🟢 KODE FIX BARU DI userModel.js (Ganti university jadi nim)
 const createUser = async (name, email, password, nim, bio) => {
   return db.execute(
